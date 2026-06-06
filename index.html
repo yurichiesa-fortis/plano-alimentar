@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+
+<!-- PWA / iOS -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Dieta" />
+
+<title>Meu Plano Alimentar — TACO</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { prot: '#3b82f6', carb: '#22c55e', gord: '#f59e0b', ink: '#0f172a', brand: '#6366f1' },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+    } },
+  };
+</script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+<style>
+  :root { color-scheme: light; }
+  * { -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  input[type=date] { -webkit-appearance: none; appearance: none; }
+  .bar-fill { transition: width .55s cubic-bezier(.22,1,.36,1); }
+  .ring-fill { transition: stroke-dashoffset .6s cubic-bezier(.22,1,.36,1); }
+  .col-fill { transition: height .5s cubic-bezier(.22,1,.36,1); }
+  .expand-enter-active, .expand-leave-active { transition: all .26s ease; overflow: hidden; }
+  .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
+  .expand-enter-to, .expand-leave-from { opacity: 1; max-height: 1600px; }
+  .sheet-enter-active, .sheet-leave-active { transition: transform .3s cubic-bezier(.22,1,.36,1); }
+  .sheet-enter-from, .sheet-leave-to { transform: translateY(100%); }
+  .fade-enter-active, .fade-leave-active { transition: opacity .25s ease; }
+  .fade-enter-from, .fade-leave-to { opacity: 0; }
+  .pop-enter-active { transition: all .22s ease; }
+  .pop-enter-from { opacity: 0; transform: translateY(-6px); }
+  .safe-top { padding-top: env(safe-area-inset-top); }
+</style>
+</head>
+
+<body class="bg-slate-200/70">
+<div id="app" v-cloak>
+  <div class="mx-auto w-full max-w-[480px] min-h-screen bg-slate-50 shadow-2xl relative overflow-x-hidden">
+
+    <!-- ===================== STICKY DASHBOARD ===================== -->
+    <header class="sticky top-0 z-20">
+      <div class="bg-ink text-white px-5 pt-5 pb-4 rounded-b-[28px] shadow-lg safe-top">
+        <div class="flex items-start justify-between mb-3">
+          <div class="min-w-0">
+            <h1 class="text-lg font-extrabold leading-tight">Meu Plano Alimentar</h1>
+            <!-- date navigator -->
+            <div class="flex items-center gap-1.5 mt-1.5">
+              <button @click="shiftDate(-1)" class="h-7 w-7 grid place-items-center rounded-lg bg-white/10 active:bg-white/20">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="relative">
+                <span class="text-[12px] font-semibold capitalize px-1">{{ dateLabel }}</span>
+                <input type="date" v-model="date" class="absolute inset-0 opacity-0 w-full" />
+              </div>
+              <button @click="shiftDate(1)" class="h-7 w-7 grid place-items-center rounded-lg bg-white/10 active:bg-white/20">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <button v-if="!isToday" @click="date = todayStr()" class="text-[11px] font-bold text-brand bg-white/90 rounded-full px-2 py-0.5 ml-1">Hoje</button>
+            </div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button @click="historyOpen = true" class="h-10 w-10 grid place-items-center rounded-full bg-white/10 active:bg-white/20 transition" title="Histórico">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </button>
+            <button @click="goalsOpen = true" class="h-10 w-10 grid place-items-center rounded-full bg-white/10 active:bg-white/20 transition" title="Metas">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="relative shrink-0" style="width:118px;height:118px">
+            <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="11" />
+              <circle class="ring-fill" cx="60" cy="60" r="52" fill="none" :stroke="ringColor" stroke-width="11" stroke-linecap="round"
+                      :stroke-dasharray="ringCirc" :stroke-dashoffset="ringCirc * (1 - Math.min(1, totals.kcal / goals.kcal || 0))" />
+            </svg>
+            <div class="absolute inset-0 grid place-content-center text-center">
+              <span class="text-[26px] font-extrabold leading-none tnum">{{ fmtInt(totals.kcal) }}</span>
+              <span class="text-[10px] text-white/50 font-medium">de {{ fmtInt(goals.kcal) }} kcal</span>
+              <span class="text-[10px] font-semibold mt-0.5" :class="remaining >= 0 ? 'text-emerald-300' : 'text-amber-300'">
+                {{ remaining >= 0 ? 'restam ' + fmtInt(remaining) : '+' + fmtInt(-remaining) }}
+              </span>
+            </div>
+          </div>
+          <div class="flex-1 space-y-2.5">
+            <div v-for="m in macroMeta" :key="m.key">
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="font-semibold flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" :style="{background:m.color}"></span>{{ m.label }}</span>
+                <span class="tnum text-white/70"><b class="text-white">{{ fmt(totals[m.key]) }}</b> / {{ fmt(goals[m.key]) }} g</span>
+              </div>
+              <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div class="h-full rounded-full bar-fill" :style="{ width: Math.min(100, pct(totals[m.key], goals[m.key])) + '%', background: m.color }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================== MEALS ===================== -->
+    <main class="px-4 py-4 space-y-3.5 pb-10">
+      <section v-for="(meal, mi) in meals" :key="meal.id" class="bg-white rounded-3xl shadow-sm ring-1 ring-slate-100 overflow-hidden">
+        <button @click="toggle(mi)" class="w-full flex items-center gap-3 px-4 py-3.5 active:bg-slate-50 transition">
+          <div class="h-10 w-10 shrink-0 grid place-items-center rounded-2xl text-xl" :style="{background:meal.tint}">{{ meal.icon }}</div>
+          <div class="flex-1 text-left">
+            <p class="font-bold text-ink leading-tight">{{ meal.nome }}</p>
+            <p class="text-[11px] text-slate-400 font-medium">{{ meal.itens.length }} {{ meal.itens.length === 1 ? 'item' : 'itens' }}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-extrabold text-ink tnum leading-tight">{{ fmtInt(mealTotals(meal).kcal) }}<span class="text-[11px] font-medium text-slate-400"> kcal</span></p>
+            <div class="flex gap-2 justify-end mt-0.5 text-[10px] font-semibold tnum">
+              <span :style="{color:macroColor.prot}">P {{ fmt(mealTotals(meal).prot) }}</span>
+              <span :style="{color:macroColor.carb}">C {{ fmt(mealTotals(meal).carb) }}</span>
+              <span :style="{color:macroColor.gord}">G {{ fmt(mealTotals(meal).gord) }}</span>
+            </div>
+          </div>
+          <svg class="w-5 h-5 text-slate-300 transition-transform duration-300 shrink-0" :class="{'rotate-180': !meal.collapsed}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <transition name="expand">
+          <div v-show="!meal.collapsed" class="border-t border-slate-100">
+            <transition-group name="pop" tag="div">
+              <div v-for="(it, ii) in meal.itens" :key="it.uid" class="px-4 py-3 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                  <button @click="openSheet('change', mi, ii)" class="flex-1 text-left min-w-0">
+                    <p class="font-semibold text-ink text-[15px] truncate">{{ food(it).nome }}</p>
+                    <p class="text-[10px] text-slate-400 font-medium truncate">{{ food(it).fonte }} · {{ fmtInt(food(it).kcal) }} kcal/100g</p>
+                  </button>
+                  <span class="font-extrabold text-ink tnum text-[15px]">{{ fmtInt(itemKcal(it)) }}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                  <div class="flex items-center bg-slate-100 rounded-xl overflow-hidden">
+                    <button @click="bump(it,-10)" class="px-2.5 py-1.5 text-slate-400 active:bg-slate-200 font-bold">–</button>
+                    <input type="number" min="0" step="5" v-model.number="it.qtd" class="w-12 bg-transparent text-center font-bold text-ink text-sm outline-none tnum py-1.5" />
+                    <button @click="bump(it,10)" class="px-2.5 py-1.5 text-slate-400 active:bg-slate-200 font-bold">+</button>
+                  </div>
+                  <span class="text-[11px] text-slate-400 font-medium -ml-1">g</span>
+                  <div class="flex gap-1 flex-1 justify-end tnum">
+                    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold" :style="chip('prot')">P {{ fmt(itemProt(it)) }}</span>
+                    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold" :style="chip('carb')">C {{ fmt(itemCarb(it)) }}</span>
+                    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold" :style="chip('gord')">G {{ fmt(itemGord(it)) }}</span>
+                  </div>
+                  <button @click="openSheet('sub', mi, ii)" class="h-8 w-8 grid place-items-center rounded-lg text-brand bg-brand/10 active:scale-95 transition" title="Substituir">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                  </button>
+                  <button @click="removeItem(mi, ii)" class="h-8 w-8 grid place-items-center rounded-lg text-slate-400 active:bg-rose-50 active:text-rose-500 transition" title="Remover">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </transition-group>
+            <button @click="openSheet('add', mi)" class="w-full flex items-center justify-center gap-2 py-3 text-brand font-semibold text-sm active:bg-brand/5 transition">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar alimento
+            </button>
+          </div>
+        </transition>
+      </section>
+      <p class="text-center text-[11px] text-slate-400 pt-1">Dados: Tabela TACO 4ª ed. · {{ db.length }} alimentos no banco</p>
+    </main>
+
+    <!-- ===================== FOOD SHEET ===================== -->
+    <transition name="fade"><div v-if="sheet.open" class="fixed inset-0 z-40 bg-black/40" @click="closeSheet"></div></transition>
+    <transition name="sheet">
+      <div v-if="sheet.open" class="fixed bottom-0 z-50 w-full max-w-[480px] left-1/2 -translate-x-1/2 bg-white rounded-t-[28px] shadow-2xl flex flex-col" style="height:82vh">
+        <div class="p-4 pb-2 shrink-0">
+          <div class="h-1.5 w-10 bg-slate-200 rounded-full mx-auto mb-3"></div>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-ink text-lg leading-tight">{{ sheetTitle }}</h3>
+              <p v-if="sheet.mode==='sub'" class="text-[12px] text-slate-500">Equivaler <b>{{ fmtInt(subTargetKcal) }} kcal</b> de {{ subOriginName }}</p>
+              <p v-else class="text-[12px] text-slate-500">Toque pra escolher · {{ db.length }} alimentos</p>
+            </div>
+            <button @click="closeSheet" class="h-9 w-9 grid place-items-center rounded-full bg-slate-100 active:bg-slate-200">
+              <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="mt-3 flex items-center gap-2 bg-slate-100 rounded-2xl px-3.5 py-2.5">
+            <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input ref="searchInput" v-model="sheet.q" type="text" placeholder="Buscar alimento…" class="bg-transparent flex-1 outline-none text-sm font-medium text-ink placeholder-slate-400" />
+            <button v-if="sheet.q" @click="sheet.q=''" class="text-slate-400"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto no-scrollbar px-3 pb-6">
+          <p v-if="sheet.mode==='sub' && !sheet.q" class="px-2 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Sugestões parecidas</p>
+          <button v-for="f in sheetResults" :key="f.idx" @click="selectFood(f.idx)" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl active:bg-slate-100 transition text-left">
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-ink text-[14px] truncate">{{ f.nome }}</p>
+              <p class="text-[10px] text-slate-400 font-medium truncate">{{ f.fonte }} · {{ fmtInt(f.kcal) }} kcal/100g</p>
+            </div>
+            <div class="text-right shrink-0">
+              <template v-if="sheet.mode==='sub'">
+                <p class="font-extrabold text-brand tnum text-sm">{{ fmt(subGrams(f)) }} g</p>
+                <p class="text-[10px] text-slate-400 tnum">P{{ fmt(f.prot*subGrams(f)/100) }} C{{ fmt(f.carb*subGrams(f)/100) }} G{{ fmt(f.gord*subGrams(f)/100) }}</p>
+              </template>
+              <template v-else>
+                <div class="flex gap-1 tnum">
+                  <span class="text-[10px] font-bold" :style="{color:macroColor.prot}">P{{ fmt(f.prot) }}</span>
+                  <span class="text-[10px] font-bold" :style="{color:macroColor.carb}">C{{ fmt(f.carb) }}</span>
+                  <span class="text-[10px] font-bold" :style="{color:macroColor.gord}">G{{ fmt(f.gord) }}</span>
+                </div>
+                <p class="text-[9px] text-slate-300">por 100g</p>
+              </template>
+            </div>
+          </button>
+          <p v-if="sheetResults.length===0" class="text-center text-sm text-slate-400 py-10">Nenhum alimento encontrado.</p>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===================== HISTORY SHEET ===================== -->
+    <transition name="fade"><div v-if="historyOpen" class="fixed inset-0 z-40 bg-black/40" @click="historyOpen=false"></div></transition>
+    <transition name="sheet">
+      <div v-if="historyOpen" class="fixed bottom-0 z-50 w-full max-w-[480px] left-1/2 -translate-x-1/2 bg-white rounded-t-[28px] shadow-2xl flex flex-col" style="max-height:88vh">
+        <div class="p-5 pb-3 shrink-0">
+          <div class="h-1.5 w-10 bg-slate-200 rounded-full mx-auto mb-3"></div>
+          <div class="flex items-center justify-between">
+            <div><h3 class="font-extrabold text-ink text-lg">Histórico da semana</h3><p class="text-[12px] text-slate-500">Últimos 7 dias · meta {{ fmtInt(goals.kcal) }} kcal</p></div>
+            <button @click="historyOpen=false" class="h-9 w-9 grid place-items-center rounded-full bg-slate-100 active:bg-slate-200"><svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+
+          <!-- weekly kcal chart -->
+          <div class="mt-4 relative bg-slate-50 rounded-2xl p-3 pt-4">
+            <div class="absolute left-3 right-3 border-t border-dashed border-brand/40" :style="{ bottom: (12 + 64 * Math.min(1, goals.kcal / chartMax)) + 'px' }"></div>
+            <div class="flex items-end justify-between gap-1.5" style="height:84px">
+              <div v-for="d in week" :key="d.date" class="flex-1 flex flex-col items-center justify-end h-full cursor-pointer" @click="jump(d.date)">
+                <span v-if="d.logged" class="text-[8px] font-bold text-slate-400 mb-0.5 tnum">{{ fmtInt(d.totals.kcal/1000*10)/10 }}k</span>
+                <div class="w-full rounded-md col-fill" :style="{ height: (d.logged ? Math.max(4, 64 * Math.min(1, d.totals.kcal / chartMax)) : 3) + 'px', background: d.date===date ? '#6366f1' : (d.over ? '#f59e0b' : (d.logged ? '#a5b4fc' : '#e2e8f0')) }"></div>
+              </div>
+            </div>
+            <div class="flex justify-between gap-1.5 mt-1.5">
+              <span v-for="d in week" :key="d.date" class="flex-1 text-center text-[9px] font-semibold" :class="d.date===date ? 'text-brand' : 'text-slate-400'">{{ d.dow }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto no-scrollbar px-3 pb-4">
+          <div v-for="d in [...week].reverse()" :key="d.date" class="w-full flex items-center gap-1 px-1 py-0.5 rounded-2xl" :class="d.date===date ? 'bg-brand/5' : ''">
+            <button @click="jump(d.date)" class="flex items-center gap-3 flex-1 min-w-0 text-left px-2 py-2.5 rounded-xl active:bg-slate-100 transition">
+              <div class="h-10 w-10 shrink-0 grid place-items-center rounded-xl font-bold text-[13px]" :class="d.date===date ? 'bg-brand text-white' : 'bg-slate-100 text-slate-500'">{{ d.dom }}</div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-ink text-[14px] capitalize">{{ d.full }}<span v-if="d.date===todayStr()" class="text-brand"> · hoje</span></p>
+                <p v-if="d.logged" class="text-[10px] tnum font-medium">
+                  <span :style="{color:macroColor.prot}">P {{ fmt(d.totals.prot) }}</span> ·
+                  <span :style="{color:macroColor.carb}">C {{ fmt(d.totals.carb) }}</span> ·
+                  <span :style="{color:macroColor.gord}">G {{ fmt(d.totals.gord) }}</span>
+                </p>
+                <p v-else class="text-[10px] text-slate-400">sem registro</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-extrabold tnum" :class="d.over ? 'text-gord' : 'text-ink'">{{ d.logged ? fmtInt(d.totals.kcal) : '—' }}</p>
+                <p v-if="d.logged" class="text-[10px] text-slate-400 tnum">{{ pct(d.totals.kcal, goals.kcal) }}% da meta</p>
+              </div>
+            </button>
+            <button @click.stop="clearDay(d.date)" :disabled="!d.logged" class="h-9 w-9 shrink-0 grid place-items-center rounded-lg transition" :class="d.logged ? 'text-slate-400 active:bg-rose-50 active:text-rose-500' : 'text-slate-200 cursor-default'" title="Limpar dia">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+
+          <!-- week averages -->
+          <div class="mt-2 mx-1 bg-ink text-white rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-wider text-white/50 font-bold mb-2">Média da semana ({{ weekStats.n }} {{ weekStats.n===1?'dia':'dias' }})</p>
+            <div class="flex items-end justify-between">
+              <div><span class="text-2xl font-extrabold tnum">{{ fmtInt(weekStats.kcal) }}</span><span class="text-[11px] text-white/50"> kcal/dia</span></div>
+              <div class="flex gap-3 text-[12px] font-bold tnum">
+                <span :style="{color:'#93c5fd'}">P {{ fmt(weekStats.prot) }}</span>
+                <span :style="{color:'#86efac'}">C {{ fmt(weekStats.carb) }}</span>
+                <span :style="{color:'#fcd34d'}">G {{ fmt(weekStats.gord) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===================== GOALS / DATA SHEET ===================== -->
+    <transition name="fade"><div v-if="goalsOpen" class="fixed inset-0 z-40 bg-black/40" @click="goalsOpen=false"></div></transition>
+    <transition name="sheet">
+      <div v-if="goalsOpen" class="fixed bottom-0 z-50 w-full max-w-[480px] left-1/2 -translate-x-1/2 bg-white rounded-t-[28px] shadow-2xl p-5 pb-8 max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div class="h-1.5 w-10 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <h3 class="font-extrabold text-ink text-lg mb-1">Metas diárias</h3>
+        <p class="text-[12px] text-slate-500 mb-4">Ajuste seus alvos de calorias e macros.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block"><span class="text-[11px] font-semibold text-slate-500">Calorias (kcal)</span>
+            <input type="number" v-model.number="goals.kcal" class="mt-1 w-full bg-slate-100 rounded-xl px-3 py-2.5 font-bold text-ink outline-none focus:ring-2 ring-brand tnum" /></label>
+          <label class="block"><span class="text-[11px] font-semibold" :style="{color:macroColor.prot}">Proteína (g)</span>
+            <input type="number" v-model.number="goals.prot" class="mt-1 w-full bg-slate-100 rounded-xl px-3 py-2.5 font-bold text-ink outline-none focus:ring-2 ring-brand tnum" /></label>
+          <label class="block"><span class="text-[11px] font-semibold" :style="{color:macroColor.carb}">Carboidrato (g)</span>
+            <input type="number" v-model.number="goals.carb" class="mt-1 w-full bg-slate-100 rounded-xl px-3 py-2.5 font-bold text-ink outline-none focus:ring-2 ring-brand tnum" /></label>
+          <label class="block"><span class="text-[11px] font-semibold" :style="{color:macroColor.gord}">Gordura (g)</span>
+            <input type="number" v-model.number="goals.gord" class="mt-1 w-full bg-slate-100 rounded-xl px-3 py-2.5 font-bold text-ink outline-none focus:ring-2 ring-brand tnum" /></label>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-3 tnum">Macros somam ~{{ fmtInt(goals.prot*4 + goals.carb*4 + goals.gord*9) }} kcal.</p>
+
+        <h3 class="font-extrabold text-ink text-lg mt-6 mb-1">Backup dos dados</h3>
+        <p class="text-[12px] text-slate-500 mb-3">O histórico fica salvo só neste navegador. Exporte para guardar ou levar pro celular.</p>
+        <div class="flex gap-2">
+          <button @click="exportData" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold active:bg-slate-200 transition text-sm flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Exportar
+          </button>
+          <button @click="$refs.importFile.click()" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold active:bg-slate-200 transition text-sm flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Importar
+          </button>
+          <input ref="importFile" type="file" accept="application/json,.json" class="hidden" @change="importData" />
+        </div>
+
+        <h3 class="font-extrabold text-ink text-lg mt-6 mb-1">Dia atual</h3>
+        <p class="text-[12px] text-slate-500 mb-3">Cada dia começa vazio — você adiciona conforme come. Se quiser, carregue seu plano padrão de uma vez.</p>
+        <div class="flex gap-2">
+          <button @click="loadPlan" class="flex-1 py-3 rounded-2xl bg-brand/10 text-brand font-bold active:bg-brand/20 transition text-sm">Carregar plano padrão</button>
+          <button @click="resetDay" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200 transition text-sm">Limpar dia</button>
+        </div>
+        <button @click="goalsOpen=false" class="w-full mt-3 py-3 rounded-2xl bg-brand text-white font-bold active:scale-[.98] transition text-sm">Concluído</button>
+      </div>
+    </transition>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   BD_TACO — BANCO DE ALIMENTOS  { nome, fonte, kcal, carb, prot, gord }  (por 100 g)
+   Para adicionar/editar: inclua objetos no array DB abaixo.
+   ============================================================ */
+const DB = [{"nome":"Pão francês","fonte":"TACO 53","kcal":300,"carb":58.6,"prot":8,"gord":3.1},{"nome":"Cuscuz de milho cozido","fonte":"TACO 533","kcal":113,"carb":25.3,"prot":2.2,"gord":0.7},{"nome":"Tapioca (goma)","fonte":"Rótulo","kcal":340,"carb":85,"prot":0,"gord":0},{"nome":"Ovo inteiro cozido","fonte":"TACO 488","kcal":146,"carb":0.6,"prot":13.3,"gord":9.5},{"nome":"Ricota","fonte":"TACO 469","kcal":140,"carb":3.8,"prot":12.6,"gord":8.1},{"nome":"Queijo minas frescal","fonte":"TACO 461","kcal":264,"carb":3.2,"prot":17.4,"gord":20.2},{"nome":"Iogurte natural","fonte":"TACO 448","kcal":51,"carb":1.9,"prot":4.1,"gord":3},{"nome":"Arroz branco cozido","fonte":"TACO 3","kcal":128,"carb":28.1,"prot":2.5,"gord":0.2},{"nome":"Arroz integral cozido","fonte":"TACO 1","kcal":124,"carb":25.8,"prot":2.6,"gord":1},{"nome":"Macarrão cozido","fonte":"Estimativa","kcal":157,"carb":30.7,"prot":5.8,"gord":0.9},{"nome":"Batata doce cozida","fonte":"TACO 88","kcal":77,"carb":18.4,"prot":0.6,"gord":0.1},{"nome":"Batata inglesa cozida","fonte":"TACO 91","kcal":52,"carb":11.9,"prot":1.2,"gord":0},{"nome":"Mandioca cozida","fonte":"TACO 129","kcal":125,"carb":30.1,"prot":0.6,"gord":0.3},{"nome":"Frango grelhado (peito)","fonte":"TACO 410","kcal":159,"carb":0,"prot":32,"gord":2.5},{"nome":"Patinho bovino grelhado","fonte":"TACO 377","kcal":219,"carb":0,"prot":35.9,"gord":7.3},{"nome":"Atum em conserva","fonte":"TACO 277","kcal":166,"carb":0,"prot":26.2,"gord":6},{"nome":"Pescada (peixe) crua","fonte":"TACO 304","kcal":111,"carb":0,"prot":16.3,"gord":4.6},{"nome":"Aveia em flocos","fonte":"TACO 7","kcal":394,"carb":66.6,"prot":13.9,"gord":8.5},{"nome":"Mel","fonte":"TACO 507","kcal":309,"carb":84,"prot":0,"gord":0},{"nome":"Açúcar mascavo","fonte":"TACO 493","kcal":369,"carb":94.5,"prot":0.8,"gord":0.1},{"nome":"Banana prata","fonte":"TACO 182","kcal":98,"carb":26,"prot":1.3,"gord":0.1},{"nome":"Banana nanica","fonte":"TACO 179","kcal":92,"carb":23.8,"prot":1.4,"gord":0.1},{"nome":"Maçã c/ casca","fonte":"TACO 221","kcal":63,"carb":16.6,"prot":0.2,"gord":0.2},{"nome":"Mamão formosa","fonte":"TACO 225","kcal":45,"carb":11.6,"prot":0.8,"gord":0.1},{"nome":"Whey protein","fonte":"Rótulo (média)","kcal":400,"carb":8,"prot":80,"gord":6},{"nome":"Pasta de amendoim","fonte":"Rótulo","kcal":590,"carb":20,"prot":25,"gord":50},{"nome":"Amendoim torrado","fonte":"TACO 558","kcal":606,"carb":18.7,"prot":22.5,"gord":54},{"nome":"Castanha de caju","fonte":"TACO 588","kcal":570,"carb":29.1,"prot":18.5,"gord":46.3},{"nome":"Leite integral","fonte":"Rótulo","kcal":61,"carb":4.6,"prot":3.2,"gord":3.3},{"nome":"Leite desnatado","fonte":"Rótulo","kcal":35,"carb":5,"prot":3.4,"gord":0.1},{"nome":"Arroz, integral, cozido","fonte":"TACO 1","kcal":124,"carb":25.8,"prot":2.6,"gord":1},{"nome":"Arroz, integral, cru","fonte":"TACO 2","kcal":360,"carb":77.5,"prot":7.3,"gord":1.9},{"nome":"Arroz, tipo 1, cozido","fonte":"TACO 3","kcal":128,"carb":28.1,"prot":2.5,"gord":0.2},{"nome":"Arroz, tipo 1, cru","fonte":"TACO 4","kcal":358,"carb":78.8,"prot":7.2,"gord":0.3},{"nome":"Arroz, tipo 2, cozido","fonte":"TACO 5","kcal":130,"carb":28.2,"prot":2.6,"gord":0.4},{"nome":"Arroz, tipo 2, cru","fonte":"TACO 6","kcal":358,"carb":78.9,"prot":7.2,"gord":0.3},{"nome":"Aveia, flocos, crua","fonte":"TACO 7","kcal":394,"carb":66.6,"prot":13.9,"gord":8.5},{"nome":"Biscoito, doce, maisena","fonte":"TACO 8","kcal":443,"carb":75.2,"prot":8.1,"gord":12},{"nome":"Biscoito, doce, recheado com chocolate","fonte":"TACO 9","kcal":472,"carb":70.5,"prot":6.4,"gord":19.6},{"nome":"Biscoito, doce, recheado com morango","fonte":"TACO 10","kcal":471,"carb":71,"prot":5.7,"gord":19.6},{"nome":"Biscoito, doce, wafer, recheado de chocolate","fonte":"TACO 11","kcal":502,"carb":67.5,"prot":5.6,"gord":24.7},{"nome":"Biscoito, doce, wafer, recheado de morango","fonte":"TACO 12","kcal":513,"carb":67.4,"prot":4.5,"gord":26.4},{"nome":"Biscoito, salgado, cream cracker","fonte":"TACO 13","kcal":432,"carb":68.7,"prot":10.1,"gord":14.4},{"nome":"Bolo, mistura para","fonte":"TACO 14","kcal":419,"carb":84.7,"prot":6.2,"gord":6.1},{"nome":"Bolo, pronto, aipim","fonte":"TACO 15","kcal":324,"carb":47.9,"prot":4.4,"gord":12.7},{"nome":"Bolo, pronto, chocolate","fonte":"TACO 16","kcal":410,"carb":54.7,"prot":6.2,"gord":18.5},{"nome":"Bolo, pronto, coco","fonte":"TACO 17","kcal":333,"carb":52.3,"prot":5.7,"gord":11.3},{"nome":"Bolo, pronto, milho","fonte":"TACO 18","kcal":311,"carb":45.1,"prot":4.8,"gord":12.4},{"nome":"Canjica, branca, crua","fonte":"TACO 19","kcal":358,"carb":78.1,"prot":7.2,"gord":1},{"nome":"Canjica, com leite integral","fonte":"TACO 20","kcal":112,"carb":23.6,"prot":2.4,"gord":1.2},{"nome":"Cereais, milho, flocos, com sal","fonte":"TACO 21","kcal":370,"carb":80.8,"prot":7.3,"gord":1.6},{"nome":"Cereais, milho, flocos, sem sal","fonte":"TACO 22","kcal":363,"carb":80.4,"prot":6.9,"gord":1.2},{"nome":"Cereais, mingau, milho, infantil","fonte":"TACO 23","kcal":394,"carb":87.3,"prot":6.4,"gord":1.1},{"nome":"Cereais, mistura para vitamina, trigo, cevada e aveia","fonte":"TACO 24","kcal":381,"carb":81.6,"prot":8.9,"gord":2.1},{"nome":"Cereal matinal, milho","fonte":"TACO 25","kcal":365,"carb":83.8,"prot":7.2,"gord":1},{"nome":"Cereal matinal, milho, açúcar","fonte":"TACO 26","kcal":377,"carb":88.8,"prot":4.7,"gord":0.7},{"nome":"Creme de arroz, pó","fonte":"TACO 27","kcal":386,"carb":83.9,"prot":7,"gord":1.2},{"nome":"Creme de milho, pó","fonte":"TACO 28","kcal":333,"carb":86.1,"prot":4.8,"gord":1.6},{"nome":"Curau, milho verde","fonte":"TACO 29","kcal":78,"carb":13.9,"prot":2.4,"gord":1.6},{"nome":"Curau, milho verde, mistura para","fonte":"TACO 30","kcal":402,"carb":79.8,"prot":2.2,"gord":13.4},{"nome":"Farinha, de arroz, enriquecida","fonte":"TACO 31","kcal":363,"carb":85.5,"prot":1.3,"gord":0.3},{"nome":"Farinha, de centeio, integral","fonte":"TACO 32","kcal":336,"carb":73.3,"prot":12.5,"gord":1.8},{"nome":"Farinha, de milho, amarela","fonte":"TACO 33","kcal":351,"carb":79.1,"prot":7.2,"gord":1.5},{"nome":"Farinha, de rosca","fonte":"TACO 34","kcal":371,"carb":75.8,"prot":11.4,"gord":1.5},{"nome":"Farinha, de trigo","fonte":"TACO 35","kcal":360,"carb":75.1,"prot":9.8,"gord":1.4},{"nome":"Farinha, láctea, de cereais","fonte":"TACO 36","kcal":415,"carb":77.8,"prot":11.9,"gord":5.8},{"nome":"Lasanha, massa fresca, cozida","fonte":"TACO 37","kcal":164,"carb":32.5,"prot":5.8,"gord":1.2},{"nome":"Lasanha, massa fresca, crua","fonte":"TACO 38","kcal":220,"carb":45.1,"prot":7,"gord":1.3},{"nome":"Macarrão, instantâneo","fonte":"TACO 39","kcal":436,"carb":62.4,"prot":8.8,"gord":17.2},{"nome":"Macarrão, trigo, cru","fonte":"TACO 40","kcal":371,"carb":77.9,"prot":10,"gord":1.3},{"nome":"Macarrão, trigo, cru, com ovos","fonte":"TACO 41","kcal":371,"carb":76.6,"prot":10.3,"gord":2},{"nome":"Milho, amido, cru","fonte":"TACO 42","kcal":361,"carb":87.1,"prot":0.6,"gord":0},{"nome":"Milho, fubá, cru","fonte":"TACO 43","kcal":353,"carb":78.9,"prot":7.2,"gord":1.9},{"nome":"Milho, verde, cru","fonte":"TACO 44","kcal":138,"carb":28.6,"prot":6.6,"gord":0.6},{"nome":"Milho, verde, enlatado, drenado","fonte":"TACO 45","kcal":98,"carb":17.1,"prot":3.2,"gord":2.4},{"nome":"Mingau tradicional, pó","fonte":"TACO 46","kcal":373,"carb":89.3,"prot":0.6,"gord":0.4},{"nome":"Pamonha, barra para cozimento, pré-cozida","fonte":"TACO 47","kcal":171,"carb":30.7,"prot":2.6,"gord":4.8},{"nome":"Pão, aveia, forma","fonte":"TACO 48","kcal":343,"carb":59.6,"prot":12.4,"gord":5.7},{"nome":"Pão, de soja","fonte":"TACO 49","kcal":309,"carb":56.5,"prot":11.3,"gord":3.6},{"nome":"Pão, glúten, forma","fonte":"TACO 50","kcal":253,"carb":44.1,"prot":12,"gord":2.7},{"nome":"Pão, milho, forma","fonte":"TACO 51","kcal":292,"carb":56.4,"prot":8.3,"gord":3.1},{"nome":"Pão, trigo, forma, integral","fonte":"TACO 52","kcal":253,"carb":49.9,"prot":9.4,"gord":3.7},{"nome":"Pão, trigo, francês","fonte":"TACO 53","kcal":300,"carb":58.6,"prot":8,"gord":3.1},{"nome":"Pão, trigo, sovado","fonte":"TACO 54","kcal":311,"carb":61.5,"prot":8.4,"gord":2.8},{"nome":"Pastel, de carne, cru","fonte":"TACO 55","kcal":289,"carb":42,"prot":10.7,"gord":8.8},{"nome":"Pastel, de carne, frito","fonte":"TACO 56","kcal":388,"carb":43.8,"prot":10.1,"gord":20.1},{"nome":"Pastel, de queijo, cru","fonte":"TACO 57","kcal":308,"carb":45.9,"prot":9.9,"gord":9.6},{"nome":"Pastel, de queijo, frito","fonte":"TACO 58","kcal":422,"carb":48.1,"prot":8.7,"gord":22.7},{"nome":"Pastel, massa, crua","fonte":"TACO 59","kcal":310,"carb":57.4,"prot":6.9,"gord":5.5},{"nome":"Pastel, massa, frita","fonte":"TACO 60","kcal":570,"carb":49.3,"prot":6,"gord":40.9},{"nome":"Pipoca, com óleo de soja, sem sal","fonte":"TACO 61","kcal":448,"carb":70.3,"prot":9.9,"gord":15.9},{"nome":"Polenta, pré-cozida","fonte":"TACO 62","kcal":103,"carb":23.3,"prot":2.3,"gord":0.3},{"nome":"Torrada, pão francês","fonte":"TACO 63","kcal":377,"carb":74.6,"prot":10.5,"gord":3.3},{"nome":"Abóbora, cabotian, cozida","fonte":"TACO 64","kcal":48,"carb":10.8,"prot":1.4,"gord":0.7},{"nome":"Abóbora, cabotian, crua","fonte":"TACO 65","kcal":39,"carb":8.4,"prot":1.7,"gord":0.5},{"nome":"Abóbora, menina brasileira, crua","fonte":"TACO 66","kcal":14,"carb":3.3,"prot":0.6,"gord":0},{"nome":"Abóbora, moranga, crua","fonte":"TACO 67","kcal":12,"carb":2.7,"prot":1,"gord":0.1},{"nome":"Abóbora, moranga, refogada","fonte":"TACO 68","kcal":29,"carb":6,"prot":0.4,"gord":0.8},{"nome":"Abobora, pescoço, crua","fonte":"TACO 69","kcal":24,"carb":6.1,"prot":0.7,"gord":0.1},{"nome":"Abobrinha, italiana, cozida","fonte":"TACO 70","kcal":15,"carb":3,"prot":1.1,"gord":0.2},{"nome":"Abobrinha, italiana, crua","fonte":"TACO 71","kcal":19,"carb":4.3,"prot":1.1,"gord":0.1},{"nome":"Abobrinha, italiana, refogada","fonte":"TACO 72","kcal":24,"carb":4.2,"prot":1.1,"gord":0.8},{"nome":"Abobrinha, paulista, crua","fonte":"TACO 73","kcal":31,"carb":7.9,"prot":0.6,"gord":0.1},{"nome":"Acelga, crua","fonte":"TACO 74","kcal":21,"carb":4.6,"prot":1.4,"gord":0.1},{"nome":"Agrião, cru","fonte":"TACO 75","kcal":17,"carb":2.3,"prot":2.7,"gord":0.2},{"nome":"Aipo, cru","fonte":"TACO 76","kcal":19,"carb":4.3,"prot":0.8,"gord":0.1},{"nome":"Alface, americana, crua","fonte":"TACO 77","kcal":9,"carb":1.7,"prot":0.6,"gord":0.1},{"nome":"Alface, crespa, crua","fonte":"TACO 78","kcal":11,"carb":1.7,"prot":1.3,"gord":0.2},{"nome":"Alface, lisa, crua","fonte":"TACO 79","kcal":14,"carb":2.4,"prot":1.7,"gord":0.1},{"nome":"Alface, roxa, crua","fonte":"TACO 80","kcal":13,"carb":2.5,"prot":0.9,"gord":0.2},{"nome":"Alfavaca, crua","fonte":"TACO 81","kcal":29,"carb":5.2,"prot":2.7,"gord":0.5},{"nome":"Alho, cru","fonte":"TACO 82","kcal":113,"carb":23.9,"prot":7,"gord":0.2},{"nome":"Alho-poró, cru","fonte":"TACO 83","kcal":32,"carb":6.9,"prot":1.4,"gord":0.1},{"nome":"Almeirão, cru","fonte":"TACO 84","kcal":18,"carb":3.3,"prot":1.8,"gord":0.2},{"nome":"Almeirão, refogado","fonte":"TACO 85","kcal":65,"carb":5.7,"prot":1.7,"gord":4.8},{"nome":"Batata, baroa, cozida","fonte":"TACO 86","kcal":80,"carb":18.9,"prot":0.9,"gord":0.2},{"nome":"Batata, baroa, crua","fonte":"TACO 87","kcal":101,"carb":24,"prot":1,"gord":0.2},{"nome":"Batata, doce, cozida","fonte":"TACO 88","kcal":77,"carb":18.4,"prot":0.6,"gord":0.1},{"nome":"Batata, doce, crua","fonte":"TACO 89","kcal":118,"carb":28.2,"prot":1.3,"gord":0.1},{"nome":"Batata, frita, tipo chips, industrializada","fonte":"TACO 90","kcal":543,"carb":51.2,"prot":5.6,"gord":36.6},{"nome":"Batata, inglesa, cozida","fonte":"TACO 91","kcal":52,"carb":11.9,"prot":1.2,"gord":0},{"nome":"Batata, inglesa, crua","fonte":"TACO 92","kcal":64,"carb":14.7,"prot":1.8,"gord":0},{"nome":"Batata, inglesa, frita","fonte":"TACO 93","kcal":267,"carb":35.6,"prot":5,"gord":13.1},{"nome":"Batata, inglesa, sauté","fonte":"TACO 94","kcal":68,"carb":14.1,"prot":1.3,"gord":0.9},{"nome":"Berinjela, cozida","fonte":"TACO 95","kcal":19,"carb":4.5,"prot":0.7,"gord":0.1},{"nome":"Berinjela, crua","fonte":"TACO 96","kcal":20,"carb":4.4,"prot":1.2,"gord":0.1},{"nome":"Beterraba, cozida","fonte":"TACO 97","kcal":32,"carb":7.2,"prot":1.3,"gord":0.1},{"nome":"Beterraba, crua","fonte":"TACO 98","kcal":49,"carb":11.1,"prot":1.9,"gord":0.1},{"nome":"Biscoito, polvilho doce","fonte":"TACO 99","kcal":438,"carb":80.5,"prot":1.3,"gord":12.2},{"nome":"Brócolis, cozido","fonte":"TACO 100","kcal":25,"carb":4.4,"prot":2.1,"gord":0.5},{"nome":"Brócolis, cru","fonte":"TACO 101","kcal":25,"carb":4,"prot":3.6,"gord":0.3},{"nome":"Cará, cozido","fonte":"TACO 102","kcal":78,"carb":18.9,"prot":1.5,"gord":0.1},{"nome":"Cará, cru","fonte":"TACO 103","kcal":96,"carb":23,"prot":2.3,"gord":0.1},{"nome":"Caruru, cru","fonte":"TACO 104","kcal":34,"carb":6,"prot":3.2,"gord":0.6},{"nome":"Catalonha, crua","fonte":"TACO 105","kcal":24,"carb":4.8,"prot":1.9,"gord":0.3},{"nome":"Catalonha, refogada","fonte":"TACO 106","kcal":63,"carb":4.8,"prot":2,"gord":4.8},{"nome":"Cebola, crua","fonte":"TACO 107","kcal":39,"carb":8.9,"prot":1.7,"gord":0.1},{"nome":"Cebolinha, crua","fonte":"TACO 108","kcal":20,"carb":3.4,"prot":1.9,"gord":0.4},{"nome":"Cenoura, cozida","fonte":"TACO 109","kcal":30,"carb":6.7,"prot":0.8,"gord":0.2},{"nome":"Cenoura, crua","fonte":"TACO 110","kcal":34,"carb":7.7,"prot":1.3,"gord":0.2},{"nome":"Chicória, crua","fonte":"TACO 111","kcal":14,"carb":2.9,"prot":1.1,"gord":0.1},{"nome":"Chuchu, cozido","fonte":"TACO 112","kcal":19,"carb":4.8,"prot":0.4,"gord":0},{"nome":"Chuchu, cru","fonte":"TACO 113","kcal":17,"carb":4.1,"prot":0.7,"gord":0.1},{"nome":"Coentro, folhas desidratadas","fonte":"TACO 114","kcal":309,"carb":48,"prot":20.9,"gord":10.4},{"nome":"Couve, manteiga, crua","fonte":"TACO 115","kcal":27,"carb":4.3,"prot":2.9,"gord":0.5},{"nome":"Couve, manteiga, refogada","fonte":"TACO 116","kcal":90,"carb":8.7,"prot":1.7,"gord":6.6},{"nome":"Couve-flor, crua","fonte":"TACO 117","kcal":23,"carb":4.5,"prot":1.9,"gord":0.2},{"nome":"Couve-flor, cozida","fonte":"TACO 118","kcal":19,"carb":3.9,"prot":1.2,"gord":0.3},{"nome":"Espinafre, Nova Zelândia, cru","fonte":"TACO 119","kcal":16,"carb":2.6,"prot":2,"gord":0.2},{"nome":"Espinafre, Nova Zelândia, refogado","fonte":"TACO 120","kcal":67,"carb":4.2,"prot":2.7,"gord":5.4},{"nome":"Farinha, de mandioca, crua","fonte":"TACO 121","kcal":361,"carb":87.9,"prot":1.6,"gord":0.3},{"nome":"Farinha, de mandioca, torrada","fonte":"TACO 122","kcal":365,"carb":89.2,"prot":1.2,"gord":0.3},{"nome":"Farinha, de puba","fonte":"TACO 123","kcal":360,"carb":87.3,"prot":1.6,"gord":0.5},{"nome":"Fécula, de mandioca","fonte":"TACO 124","kcal":331,"carb":81.1,"prot":0.5,"gord":0.3},{"nome":"Feijão, broto, cru","fonte":"TACO 125","kcal":39,"carb":7.8,"prot":4.2,"gord":0.1},{"nome":"Inhame, cru","fonte":"TACO 126","kcal":97,"carb":23.2,"prot":2.1,"gord":0.2},{"nome":"Jiló, cru","fonte":"TACO 127","kcal":27,"carb":6.2,"prot":1.4,"gord":0.2},{"nome":"Jurubeba, crua","fonte":"TACO 128","kcal":126,"carb":23.1,"prot":4.4,"gord":3.9},{"nome":"Mandioca, cozida","fonte":"TACO 129","kcal":125,"carb":30.1,"prot":0.6,"gord":0.3},{"nome":"Mandioca, crua","fonte":"TACO 130","kcal":151,"carb":36.2,"prot":1.1,"gord":0.3},{"nome":"Mandioca, farofa, temperada","fonte":"TACO 131","kcal":406,"carb":80.3,"prot":2.1,"gord":9.1},{"nome":"Mandioca, frita","fonte":"TACO 132","kcal":300,"carb":50.3,"prot":1.4,"gord":11.2},{"nome":"Manjericão, cru","fonte":"TACO 133","kcal":21,"carb":3.6,"prot":2,"gord":0.4},{"nome":"Maxixe, cru","fonte":"TACO 134","kcal":14,"carb":2.7,"prot":1.4,"gord":0.1},{"nome":"Mostarda, folha, crua","fonte":"TACO 135","kcal":18,"carb":3.2,"prot":2.1,"gord":0.2},{"nome":"Nhoque, batata, cozido","fonte":"TACO 136","kcal":181,"carb":36.8,"prot":5.9,"gord":1.9},{"nome":"Nabo, cru","fonte":"TACO 137","kcal":18,"carb":4.1,"prot":1.2,"gord":0.1},{"nome":"Palmito, juçara, em conserva","fonte":"TACO 138","kcal":23,"carb":4.3,"prot":1.8,"gord":0.4},{"nome":"Palmito, pupunha, em conserva","fonte":"TACO 139","kcal":29,"carb":5.5,"prot":2.5,"gord":0.5},{"nome":"Pão, de queijo, assado","fonte":"TACO 140","kcal":363,"carb":34.2,"prot":5.1,"gord":24.6},{"nome":"Pão, de queijo, cru","fonte":"TACO 141","kcal":295,"carb":38.5,"prot":3.6,"gord":14},{"nome":"Pepino, cru","fonte":"TACO 142","kcal":10,"carb":2,"prot":0.9,"gord":0},{"nome":"Pimentão, amarelo, cru","fonte":"TACO 143","kcal":28,"carb":6,"prot":1.2,"gord":0.4},{"nome":"Pimentão, verde, cru","fonte":"TACO 144","kcal":21,"carb":4.9,"prot":1.1,"gord":0.2},{"nome":"Pimentão, vermelho, cru","fonte":"TACO 145","kcal":23,"carb":5.5,"prot":1,"gord":0.1},{"nome":"Polvilho, doce","fonte":"TACO 146","kcal":351,"carb":86.8,"prot":0.4,"gord":0},{"nome":"Quiabo, cru","fonte":"TACO 147","kcal":30,"carb":6.4,"prot":1.9,"gord":0.3},{"nome":"Rabanete, cru","fonte":"TACO 148","kcal":14,"carb":2.7,"prot":1.4,"gord":0.1},{"nome":"Repolho, branco, cru","fonte":"TACO 149","kcal":17,"carb":3.9,"prot":0.9,"gord":0.1},{"nome":"Repolho, roxo, cru","fonte":"TACO 150","kcal":31,"carb":7.2,"prot":1.9,"gord":0.1},{"nome":"Repolho, roxo, refogado","fonte":"TACO 151","kcal":42,"carb":7.6,"prot":1.8,"gord":1.2},{"nome":"Rúcula, crua","fonte":"TACO 152","kcal":13,"carb":2.2,"prot":1.8,"gord":0.1},{"nome":"Salsa, crua","fonte":"TACO 153","kcal":33,"carb":5.7,"prot":3.3,"gord":0.6},{"nome":"Seleta de legumes, enlatada","fonte":"TACO 154","kcal":57,"carb":12.7,"prot":3.4,"gord":0.4},{"nome":"Serralha, crua","fonte":"TACO 155","kcal":30,"carb":4.9,"prot":2.7,"gord":0.7},{"nome":"Taioba, crua","fonte":"TACO 156","kcal":34,"carb":5.4,"prot":2.9,"gord":0.9},{"nome":"Tomate, com semente, cru","fonte":"TACO 157","kcal":15,"carb":3.1,"prot":1.1,"gord":0.2},{"nome":"Tomate, extrato","fonte":"TACO 158","kcal":61,"carb":15,"prot":2.4,"gord":0.2},{"nome":"Tomate, molho industrializado","fonte":"TACO 159","kcal":38,"carb":7.7,"prot":1.4,"gord":0.9},{"nome":"Tomate, purê","fonte":"TACO 160","kcal":28,"carb":6.9,"prot":1.4,"gord":0},{"nome":"Tomate, salada","fonte":"TACO 161","kcal":21,"carb":5.1,"prot":0.8,"gord":0},{"nome":"Vagem, crua","fonte":"TACO 162","kcal":25,"carb":5.3,"prot":1.8,"gord":0.2},{"nome":"Abacate, cru","fonte":"TACO 163","kcal":96,"carb":6,"prot":1.2,"gord":8.4},{"nome":"Abacaxi, cru","fonte":"TACO 164","kcal":48,"carb":12.3,"prot":0.9,"gord":0.1},{"nome":"Abacaxi, polpa, congelada","fonte":"TACO 165","kcal":31,"carb":7.8,"prot":0.5,"gord":0.1},{"nome":"Abiu, cru","fonte":"TACO 166","kcal":62,"carb":14.9,"prot":0.8,"gord":0.7},{"nome":"Açaí, polpa, com xarope de guaraná e glucose","fonte":"TACO 167","kcal":110,"carb":21.5,"prot":0.7,"gord":3.7},{"nome":"Açaí, polpa, congelada","fonte":"TACO 168","kcal":58,"carb":6.2,"prot":0.8,"gord":3.9},{"nome":"Acerola, crua","fonte":"TACO 169","kcal":33,"carb":8,"prot":0.9,"gord":0.2},{"nome":"Acerola, polpa, congelada","fonte":"TACO 170","kcal":22,"carb":5.5,"prot":0.6,"gord":0},{"nome":"Ameixa, calda, enlatada","fonte":"TACO 171","kcal":183,"carb":46.9,"prot":0.4,"gord":0},{"nome":"Ameixa, crua","fonte":"TACO 172","kcal":53,"carb":13.9,"prot":0.8,"gord":0},{"nome":"Ameixa, em calda, enlatada, drenada","fonte":"TACO 173","kcal":177,"carb":47.7,"prot":1,"gord":0.3},{"nome":"Atemóia, crua","fonte":"TACO 174","kcal":97,"carb":25.3,"prot":1,"gord":0.3},{"nome":"Banana, da terra, crua","fonte":"TACO 175","kcal":128,"carb":33.7,"prot":1.4,"gord":0.2},{"nome":"Banana, doce em barra","fonte":"TACO 176","kcal":280,"carb":75.7,"prot":2.2,"gord":0.1},{"nome":"Banana, figo, crua","fonte":"TACO 177","kcal":105,"carb":27.8,"prot":1.1,"gord":0.1},{"nome":"Banana, maçã, crua","fonte":"TACO 178","kcal":87,"carb":22.3,"prot":1.8,"gord":0.1},{"nome":"Banana, nanica, crua","fonte":"TACO 179","kcal":92,"carb":23.8,"prot":1.4,"gord":0.1},{"nome":"Banana, ouro, crua","fonte":"TACO 180","kcal":112,"carb":29.3,"prot":1.5,"gord":0.2},{"nome":"Banana, pacova, crua","fonte":"TACO 181","kcal":78,"carb":20.3,"prot":1.2,"gord":0.1},{"nome":"Banana, prata, crua","fonte":"TACO 182","kcal":98,"carb":26,"prot":1.3,"gord":0.1},{"nome":"Cacau, cru","fonte":"TACO 183","kcal":74,"carb":19.4,"prot":1,"gord":0.1},{"nome":"Cajá-Manga, cru","fonte":"TACO 184","kcal":46,"carb":11.4,"prot":1.3,"gord":0},{"nome":"Cajá, polpa, congelada","fonte":"TACO 185","kcal":26,"carb":6.4,"prot":0.6,"gord":0.2},{"nome":"Caju, cru","fonte":"TACO 186","kcal":43,"carb":10.3,"prot":1,"gord":0.3},{"nome":"Caju, polpa, congelada","fonte":"TACO 187","kcal":37,"carb":9.4,"prot":0.5,"gord":0.2},{"nome":"Caju, suco concentrado, envasado","fonte":"TACO 188","kcal":45,"carb":10.7,"prot":0.4,"gord":0.2},{"nome":"Caqui, chocolate, cru","fonte":"TACO 189","kcal":71,"carb":19.3,"prot":0.4,"gord":0.1},{"nome":"Carambola, crua","fonte":"TACO 190","kcal":46,"carb":11.5,"prot":0.9,"gord":0.2},{"nome":"Ciriguela, crua","fonte":"TACO 191","kcal":76,"carb":18.9,"prot":1.4,"gord":0.4},{"nome":"Cupuaçu, cru","fonte":"TACO 192","kcal":49,"carb":10.4,"prot":1.2,"gord":1},{"nome":"Cupuaçu, polpa, congelada","fonte":"TACO 193","kcal":49,"carb":11.4,"prot":0.8,"gord":0.6},{"nome":"Figo, cru","fonte":"TACO 194","kcal":41,"carb":10.2,"prot":1,"gord":0.2},{"nome":"Figo, enlatado, em calda","fonte":"TACO 195","kcal":184,"carb":50.3,"prot":0.6,"gord":0.2},{"nome":"Fruta-pão, crua","fonte":"TACO 196","kcal":67,"carb":17.2,"prot":1.1,"gord":0.2},{"nome":"Goiaba, branca, com casca, crua","fonte":"TACO 197","kcal":52,"carb":12.4,"prot":0.9,"gord":0.5},{"nome":"Goiaba, doce em pasta","fonte":"TACO 198","kcal":269,"carb":74.1,"prot":0.6,"gord":0},{"nome":"Goiaba, doce, cascão","fonte":"TACO 199","kcal":286,"carb":78.7,"prot":0.4,"gord":0.1},{"nome":"Goiaba, vermelha, com casca, crua","fonte":"TACO 200","kcal":54,"carb":13,"prot":1.1,"gord":0.4},{"nome":"Graviola, crua","fonte":"TACO 201","kcal":62,"carb":15.8,"prot":0.8,"gord":0.2},{"nome":"Graviola, polpa, congelada","fonte":"TACO 202","kcal":38,"carb":9.8,"prot":0.6,"gord":0.1},{"nome":"Jabuticaba, crua","fonte":"TACO 203","kcal":58,"carb":15.3,"prot":0.6,"gord":0.1},{"nome":"Jaca, crua","fonte":"TACO 204","kcal":88,"carb":22.5,"prot":1.4,"gord":0.3},{"nome":"Jambo, cru","fonte":"TACO 205","kcal":27,"carb":6.5,"prot":0.9,"gord":0.1},{"nome":"Jamelão, cru","fonte":"TACO 206","kcal":41,"carb":10.6,"prot":0.5,"gord":0.1},{"nome":"Kiwi, cru","fonte":"TACO 207","kcal":51,"carb":11.5,"prot":1.3,"gord":0.6},{"nome":"Laranja, baía, crua","fonte":"TACO 208","kcal":45,"carb":11.5,"prot":1,"gord":0.1},{"nome":"Laranja, baía, suco","fonte":"TACO 209","kcal":37,"carb":8.7,"prot":0.7,"gord":0},{"nome":"Laranja, da terra, crua","fonte":"TACO 210","kcal":51,"carb":12.9,"prot":1.1,"gord":0.2},{"nome":"Laranja, da terra, suco","fonte":"TACO 211","kcal":41,"carb":9.6,"prot":0.7,"gord":0.1},{"nome":"Laranja, lima, crua","fonte":"TACO 212","kcal":46,"carb":11.5,"prot":1.1,"gord":0.1},{"nome":"Laranja, lima, suco","fonte":"TACO 213","kcal":39,"carb":9.2,"prot":0.7,"gord":0.1},{"nome":"Laranja, pêra, crua","fonte":"TACO 214","kcal":37,"carb":8.9,"prot":1,"gord":0.1},{"nome":"Laranja, pêra, suco","fonte":"TACO 215","kcal":33,"carb":7.6,"prot":0.7,"gord":0.1},{"nome":"Laranja, valência, crua","fonte":"TACO 216","kcal":46,"carb":11.7,"prot":0.8,"gord":0.2},{"nome":"Laranja, valência, suco","fonte":"TACO 217","kcal":36,"carb":8.6,"prot":0.5,"gord":0.1},{"nome":"Limão, cravo, suco","fonte":"TACO 218","kcal":14,"carb":5.2,"prot":0.3,"gord":0},{"nome":"Limão, galego, suco","fonte":"TACO 219","kcal":22,"carb":7.3,"prot":0.6,"gord":0.1},{"nome":"Limão, tahiti, cru","fonte":"TACO 220","kcal":32,"carb":11.1,"prot":0.9,"gord":0.1},{"nome":"Maçã, Argentina, com casca, crua","fonte":"TACO 221","kcal":63,"carb":16.6,"prot":0.2,"gord":0.2},{"nome":"Maçã, Fuji, com casca, crua","fonte":"TACO 222","kcal":56,"carb":15.2,"prot":0.3,"gord":0},{"nome":"Macaúba, crua","fonte":"TACO 223","kcal":404,"carb":13.9,"prot":2.1,"gord":40.7},{"nome":"Mamão, doce em calda, drenado","fonte":"TACO 224","kcal":196,"carb":54,"prot":0.2,"gord":0.1},{"nome":"Mamão, Formosa, cru","fonte":"TACO 225","kcal":45,"carb":11.6,"prot":0.8,"gord":0.1},{"nome":"Mamão, Papaia, cru","fonte":"TACO 226","kcal":40,"carb":10.4,"prot":0.5,"gord":0.1},{"nome":"Mamão verde, doce em calda, drenado","fonte":"TACO 227","kcal":209,"carb":57.6,"prot":0.3,"gord":0.1},{"nome":"Manga, Haden, crua","fonte":"TACO 228","kcal":64,"carb":16.7,"prot":0.4,"gord":0.3},{"nome":"Manga, Palmer, crua","fonte":"TACO 229","kcal":72,"carb":19.4,"prot":0.4,"gord":0.2},{"nome":"Manga, polpa, congelada","fonte":"TACO 230","kcal":48,"carb":12.5,"prot":0.4,"gord":0.2},{"nome":"Manga, Tommy Atkins, crua","fonte":"TACO 231","kcal":51,"carb":12.8,"prot":0.9,"gord":0.2},{"nome":"Maracujá, cru","fonte":"TACO 232","kcal":68,"carb":12.3,"prot":2,"gord":2.1},{"nome":"Maracujá, polpa, congelada","fonte":"TACO 233","kcal":39,"carb":9.6,"prot":0.8,"gord":0.2},{"nome":"Maracujá, suco concentrado, envasado","fonte":"TACO 234","kcal":42,"carb":9.6,"prot":0.8,"gord":0.2},{"nome":"Melancia, crua","fonte":"TACO 235","kcal":33,"carb":8.1,"prot":0.9,"gord":0},{"nome":"Melão, cru","fonte":"TACO 236","kcal":29,"carb":7.5,"prot":0.7,"gord":0},{"nome":"Mexerica, Murcote, crua","fonte":"TACO 237","kcal":58,"carb":14.9,"prot":0.9,"gord":0.1},{"nome":"Mexerica, Rio, crua","fonte":"TACO 238","kcal":37,"carb":9.3,"prot":0.7,"gord":0.1},{"nome":"Morango, cru","fonte":"TACO 239","kcal":30,"carb":6.8,"prot":0.9,"gord":0.3},{"nome":"Nêspera, crua","fonte":"TACO 240","kcal":43,"carb":11.5,"prot":0.3,"gord":0},{"nome":"Pequi, cru","fonte":"TACO 241","kcal":205,"carb":13,"prot":2.3,"gord":18},{"nome":"Pêra, Park, crua","fonte":"TACO 242","kcal":61,"carb":16.1,"prot":0.2,"gord":0.2},{"nome":"Pêra, Williams, crua","fonte":"TACO 243","kcal":53,"carb":14,"prot":0.6,"gord":0.1},{"nome":"Pêssego, Aurora, cru","fonte":"TACO 244","kcal":36,"carb":9.3,"prot":0.8,"gord":0},{"nome":"Pêssego, enlatado, em calda","fonte":"TACO 245","kcal":63,"carb":16.9,"prot":0.7,"gord":0},{"nome":"Pinha, crua","fonte":"TACO 246","kcal":88,"carb":22.4,"prot":1.5,"gord":0.3},{"nome":"Pitanga, crua","fonte":"TACO 247","kcal":41,"carb":10.2,"prot":0.9,"gord":0.2},{"nome":"Pitanga, polpa, congelada","fonte":"TACO 248","kcal":19,"carb":4.8,"prot":0.3,"gord":0.1},{"nome":"Romã, crua","fonte":"TACO 249","kcal":56,"carb":15.1,"prot":0.4,"gord":0},{"nome":"Tamarindo, cru","fonte":"TACO 250","kcal":276,"carb":72.5,"prot":3.2,"gord":0.5},{"nome":"Tangerina, Poncã, crua","fonte":"TACO 251","kcal":38,"carb":9.6,"prot":0.8,"gord":0.1},{"nome":"Tangerina, Poncã, suco","fonte":"TACO 252","kcal":36,"carb":8.8,"prot":0.5,"gord":0},{"nome":"Tucumã, cru","fonte":"TACO 253","kcal":262,"carb":26.5,"prot":2.1,"gord":19.1},{"nome":"Umbu, cru","fonte":"TACO 254","kcal":37,"carb":9.4,"prot":0.8,"gord":0},{"nome":"Umbu, polpa, congelada","fonte":"TACO 255","kcal":34,"carb":8.8,"prot":0.5,"gord":0.1},{"nome":"Uva, Itália, crua","fonte":"TACO 256","kcal":53,"carb":13.6,"prot":0.7,"gord":0.2},{"nome":"Uva, Rubi, crua","fonte":"TACO 257","kcal":49,"carb":12.7,"prot":0.6,"gord":0.2},{"nome":"Uva, suco concentrado, envasado","fonte":"TACO 258","kcal":58,"carb":14.7,"prot":0,"gord":0},{"nome":"Azeite, de dendê","fonte":"TACO 259","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Azeite, de oliva, extra virgem","fonte":"TACO 260","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Manteiga, com sal","fonte":"TACO 261","kcal":726,"carb":0.1,"prot":0.4,"gord":82.4},{"nome":"Manteiga, sem sal","fonte":"TACO 262","kcal":758,"carb":0,"prot":0.4,"gord":86},{"nome":"Margarina, com óleo hidrogenado, com sal (65% de lipídeos)","fonte":"TACO 263","kcal":596,"carb":0,"prot":0,"gord":67.4},{"nome":"Margarina, com óleo hidrogenado, sem sal (80% de lipídeos)","fonte":"TACO 264","kcal":723,"carb":0,"prot":0,"gord":81.7},{"nome":"Margarina, com óleo interesterificado, com sal (65%de lipídeos)","fonte":"TACO 265","kcal":594,"carb":0,"prot":0,"gord":67.2},{"nome":"Margarina, com óleo interesterificado, sem sal (65% de lipídeos)","fonte":"TACO 266","kcal":593,"carb":0,"prot":0,"gord":67.1},{"nome":"Óleo, de babaçu","fonte":"TACO 267","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Óleo, de canola","fonte":"TACO 268","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Óleo, de girassol","fonte":"TACO 269","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Óleo, de milho","fonte":"TACO 270","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Óleo, de pequi","fonte":"TACO 271","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Óleo, de soja","fonte":"TACO 272","kcal":884,"carb":0,"prot":0,"gord":100},{"nome":"Abadejo, filé, congelado, assado","fonte":"TACO 273","kcal":112,"carb":0,"prot":23.5,"gord":1.2},{"nome":"Abadejo, filé, congelado,cozido","fonte":"TACO 274","kcal":91,"carb":0,"prot":19.3,"gord":0.9},{"nome":"Abadejo, filé, congelado, cru","fonte":"TACO 275","kcal":59,"carb":0,"prot":13.1,"gord":0.4},{"nome":"Abadejo, filé, congelado, grelhado","fonte":"TACO 276","kcal":130,"carb":0,"prot":27.6,"gord":1.3},{"nome":"Atum, conserva em óleo","fonte":"TACO 277","kcal":166,"carb":0,"prot":26.2,"gord":6},{"nome":"Atum, fresco, cru","fonte":"TACO 278","kcal":118,"carb":0,"prot":25.7,"gord":0.9},{"nome":"Bacalhau, salgado, cru","fonte":"TACO 279","kcal":136,"carb":0,"prot":29,"gord":1.3},{"nome":"Bacalhau, salgado, refogado","fonte":"TACO 280","kcal":140,"carb":1.2,"prot":24,"gord":3.6},{"nome":"Cação, posta, com farinha de trigo, frita","fonte":"TACO 281","kcal":208,"carb":3.1,"prot":25,"gord":10},{"nome":"Cação, posta, cozida","fonte":"TACO 282","kcal":116,"carb":0,"prot":25.6,"gord":0.7},{"nome":"Cação, posta, crua","fonte":"TACO 283","kcal":83,"carb":0,"prot":17.9,"gord":0.8},{"nome":"Camarão, Rio Grande, grande, cozido","fonte":"TACO 284","kcal":90,"carb":0,"prot":19,"gord":1},{"nome":"Camarão, Rio Grande, grande, cru","fonte":"TACO 285","kcal":47,"carb":0,"prot":10,"gord":0.5},{"nome":"Camarão, Sete Barbas, sem cabeça, com casca, frito","fonte":"TACO 286","kcal":231,"carb":2.9,"prot":18.4,"gord":15.6},{"nome":"Caranguejo, cozido","fonte":"TACO 287","kcal":83,"carb":0,"prot":18.5,"gord":0.4},{"nome":"Corimba, cru","fonte":"TACO 288","kcal":128,"carb":0,"prot":17.4,"gord":6},{"nome":"Corimbatá, assado","fonte":"TACO 289","kcal":261,"carb":0,"prot":19.9,"gord":19.6},{"nome":"Corimbatá, cozido","fonte":"TACO 290","kcal":239,"carb":0,"prot":20.1,"gord":16.9},{"nome":"Corvina de água doce, crua","fonte":"TACO 291","kcal":101,"carb":0,"prot":18.9,"gord":2.2},{"nome":"Corvina do mar, crua","fonte":"TACO 292","kcal":94,"carb":0,"prot":18.6,"gord":1.6},{"nome":"Corvina grande, assada","fonte":"TACO 293","kcal":147,"carb":0,"prot":26.8,"gord":3.6},{"nome":"Corvina grande, cozida","fonte":"TACO 294","kcal":100,"carb":0,"prot":23.4,"gord":2.6},{"nome":"Dourada de água doce, fresca","fonte":"TACO 295","kcal":131,"carb":0,"prot":18.8,"gord":5.6},{"nome":"Lambari, congelado, cru","fonte":"TACO 296","kcal":131,"carb":0,"prot":16.8,"gord":6.5},{"nome":"Lambari, congelado, frito","fonte":"TACO 297","kcal":327,"carb":0,"prot":28.4,"gord":22.8},{"nome":"Lambari, fresco, cru","fonte":"TACO 298","kcal":152,"carb":0,"prot":15.7,"gord":9.4},{"nome":"Manjuba, com farinha de trigo, frita","fonte":"TACO 299","kcal":344,"carb":10.2,"prot":23.5,"gord":22.6},{"nome":"Manjuba, frita","fonte":"TACO 300","kcal":349,"carb":0,"prot":30.1,"gord":24.5},{"nome":"Merluza, filé, assado","fonte":"TACO 301","kcal":122,"carb":0,"prot":26.6,"gord":0.9},{"nome":"Merluza, filé, cru","fonte":"TACO 302","kcal":89,"carb":0,"prot":16.6,"gord":2},{"nome":"Merluza, filé, frito","fonte":"TACO 303","kcal":192,"carb":0,"prot":26.9,"gord":8.5},{"nome":"Pescada, branca, crua","fonte":"TACO 304","kcal":111,"carb":0,"prot":16.3,"gord":4.6},{"nome":"Pescada, branca, frita","fonte":"TACO 305","kcal":223,"carb":0,"prot":27.4,"gord":11.8},{"nome":"Pescada, filé, com farinha de trigo, frito","fonte":"TACO 306","kcal":283,"carb":5,"prot":21.4,"gord":19.1},{"nome":"Pescada, filé, cru","fonte":"TACO 307","kcal":107,"carb":0,"prot":16.7,"gord":4},{"nome":"Pescada, filé, frito","fonte":"TACO 308","kcal":154,"carb":0,"prot":28.6,"gord":3.6},{"nome":"Pescada, filé, molho escabeche","fonte":"TACO 309","kcal":142,"carb":5,"prot":11.8,"gord":8},{"nome":"Pescadinha, crua","fonte":"TACO 310","kcal":76,"carb":0,"prot":15.5,"gord":1.1},{"nome":"Pintado, assado","fonte":"TACO 311","kcal":192,"carb":0,"prot":36.5,"gord":4},{"nome":"Pintado, cru","fonte":"TACO 312","kcal":91,"carb":0,"prot":18.6,"gord":1.3},{"nome":"Pintado, grelhado","fonte":"TACO 313","kcal":152,"carb":0,"prot":30.8,"gord":2.3},{"nome":"Porquinho, cru","fonte":"TACO 314","kcal":93,"carb":0,"prot":20.5,"gord":0.6},{"nome":"Salmão, filé, com pele, fresco, grelhado","fonte":"TACO 315","kcal":229,"carb":0,"prot":23.9,"gord":14},{"nome":"Salmão, sem pele, fresco, cru","fonte":"TACO 316","kcal":170,"carb":0,"prot":19.3,"gord":9.7},{"nome":"Salmão, sem pele, fresco, grelhado","fonte":"TACO 317","kcal":243,"carb":0,"prot":26.1,"gord":14.5},{"nome":"Sardinha, assada","fonte":"TACO 318","kcal":164,"carb":0,"prot":32.2,"gord":3},{"nome":"Sardinha, conserva em óleo","fonte":"TACO 319","kcal":285,"carb":0,"prot":15.9,"gord":24},{"nome":"Sardinha, frita","fonte":"TACO 320","kcal":257,"carb":0,"prot":33.4,"gord":12.7},{"nome":"Sardinha, inteira, crua","fonte":"TACO 321","kcal":114,"carb":0,"prot":21.1,"gord":2.7},{"nome":"Tucunaré, filé, congelado, cru","fonte":"TACO 322","kcal":88,"carb":0,"prot":18,"gord":1.2},{"nome":"Apresuntado","fonte":"TACO 323","kcal":129,"carb":2.9,"prot":13.5,"gord":6.7},{"nome":"Caldo de carne, tablete","fonte":"TACO 324","kcal":241,"carb":15.1,"prot":7.8,"gord":16.6},{"nome":"Caldo de galinha, tablete","fonte":"TACO 325","kcal":251,"carb":10.6,"prot":6.3,"gord":20.4},{"nome":"Carne, bovina, acém, moído, cozido","fonte":"TACO 326","kcal":212,"carb":0,"prot":26.7,"gord":10.9},{"nome":"Carne, bovina, acém, moído, cru","fonte":"TACO 327","kcal":137,"carb":0,"prot":19.4,"gord":5.9},{"nome":"Carne, bovina, acém, sem gordura, cozido","fonte":"TACO 328","kcal":215,"carb":0,"prot":27.3,"gord":10.9},{"nome":"Carne, bovina, acém, sem gordura, cru","fonte":"TACO 329","kcal":144,"carb":0,"prot":20.8,"gord":6.1},{"nome":"Carne, bovina, almôndegas, cruas","fonte":"TACO 330","kcal":189,"carb":9.8,"prot":12.3,"gord":11.2},{"nome":"Carne, bovina, almôndegas, fritas","fonte":"TACO 331","kcal":272,"carb":14.3,"prot":18.2,"gord":15.8},{"nome":"Carne, bovina, bucho, cozido","fonte":"TACO 332","kcal":133,"carb":0,"prot":21.6,"gord":4.5},{"nome":"Carne, bovina, bucho, cru","fonte":"TACO 333","kcal":137,"carb":0,"prot":20.5,"gord":5.5},{"nome":"Carne, bovina, capa de contra-filé, com gordura, crua","fonte":"TACO 334","kcal":217,"carb":0,"prot":19.2,"gord":15},{"nome":"Carne, bovina, capa de contra-filé, com gordura, grelhada","fonte":"TACO 335","kcal":312,"carb":0,"prot":30.7,"gord":20},{"nome":"Carne, bovina, capa de contra-filé, sem gordura, crua","fonte":"TACO 336","kcal":131,"carb":0,"prot":21.5,"gord":4.3},{"nome":"Carne, bovina, capa de contra-filé, sem gordura, grelhada","fonte":"TACO 337","kcal":239,"carb":0,"prot":35.1,"gord":10},{"nome":"Carne, bovina, charque, cozido","fonte":"TACO 338","kcal":263,"carb":0,"prot":36.4,"gord":11.9},{"nome":"Carne, bovina, charque, cru","fonte":"TACO 339","kcal":249,"carb":0,"prot":22.7,"gord":16.8},{"nome":"Carne, bovina, contra-filé, à milanesa","fonte":"TACO 340","kcal":352,"carb":12.2,"prot":20.6,"gord":24},{"nome":"Carne, bovina, contra-filé de costela, cru","fonte":"TACO 341","kcal":202,"carb":0,"prot":19.8,"gord":13.1},{"nome":"Carne, bovina, contra-filé de costela, grelhado","fonte":"TACO 342","kcal":275,"carb":0,"prot":29.9,"gord":16.3},{"nome":"Carne, bovina, contra-filé, com gordura, cru","fonte":"TACO 343","kcal":206,"carb":0,"prot":21.2,"gord":12.8},{"nome":"Carne, bovina, contra-filé, com gordura, grelhado","fonte":"TACO 344","kcal":278,"carb":0,"prot":32.4,"gord":15.5},{"nome":"Carne, bovina, contra-filé, sem gordura, cru","fonte":"TACO 345","kcal":157,"carb":0,"prot":24,"gord":6},{"nome":"Carne, bovina, contra-filé, sem gordura, grelhado","fonte":"TACO 346","kcal":194,"carb":0,"prot":35.9,"gord":4.5},{"nome":"Carne, bovina, costela, assada","fonte":"TACO 347","kcal":373,"carb":0,"prot":28.8,"gord":27.7},{"nome":"Carne, bovina, costela, crua","fonte":"TACO 348","kcal":358,"carb":0,"prot":16.7,"gord":31.8},{"nome":"Carne, bovina, coxão duro, sem gordura, cozido","fonte":"TACO 349","kcal":217,"carb":0,"prot":31.9,"gord":8.9},{"nome":"Carne, bovina, coxão duro, sem gordura, cru","fonte":"TACO 350","kcal":148,"carb":0,"prot":21.5,"gord":6.2},{"nome":"Carne, bovina, coxão mole, sem gordura, cozido","fonte":"TACO 351","kcal":219,"carb":0,"prot":32.4,"gord":8.9},{"nome":"Carne, bovina, coxão mole, sem gordura, cru","fonte":"TACO 352","kcal":169,"carb":0,"prot":21.2,"gord":8.7},{"nome":"Carne, bovina, cupim, assado","fonte":"TACO 353","kcal":330,"carb":0,"prot":28.6,"gord":23},{"nome":"Carne, bovina, cupim, cru","fonte":"TACO 354","kcal":221,"carb":0,"prot":19.5,"gord":15.3},{"nome":"Carne, bovina, fígado, cru","fonte":"TACO 355","kcal":141,"carb":1.1,"prot":20.7,"gord":5.4},{"nome":"Carne, bovina, fígado, grelhado","fonte":"TACO 356","kcal":225,"carb":4.2,"prot":29.9,"gord":9},{"nome":"Carne, bovina, filé mingnon, sem gordura, cru","fonte":"TACO 357","kcal":143,"carb":0,"prot":21.6,"gord":5.6},{"nome":"Carne, bovina, filé mingnon, sem gordura, grelhado","fonte":"TACO 358","kcal":220,"carb":0,"prot":32.8,"gord":8.8},{"nome":"Carne, bovina, flanco, sem gordura, cozido","fonte":"TACO 359","kcal":196,"carb":0,"prot":29.4,"gord":7.8},{"nome":"Carne, bovina, flanco, sem gordura, cru","fonte":"TACO 360","kcal":141,"carb":0,"prot":20,"gord":6.2},{"nome":"Carne, bovina, fraldinha, com gordura, cozida","fonte":"TACO 361","kcal":338,"carb":0,"prot":24.2,"gord":26},{"nome":"Carne, bovina, fraldinha, com gordura, crua","fonte":"TACO 362","kcal":221,"carb":0,"prot":17.6,"gord":16.1},{"nome":"Carne, bovina, lagarto, cozido","fonte":"TACO 363","kcal":222,"carb":0,"prot":32.9,"gord":9.1},{"nome":"Carne, bovina, lagarto, cru","fonte":"TACO 364","kcal":135,"carb":0,"prot":20.5,"gord":5.2},{"nome":"Carne, bovina, língua, cozida","fonte":"TACO 365","kcal":315,"carb":0,"prot":21.4,"gord":24.8},{"nome":"Carne, bovina, língua, crua","fonte":"TACO 366","kcal":215,"carb":0,"prot":17.1,"gord":15.8},{"nome":"Carne, bovina, maminha, crua","fonte":"TACO 367","kcal":153,"carb":0,"prot":20.9,"gord":7},{"nome":"Carne, bovina, maminha, grelhada","fonte":"TACO 368","kcal":153,"carb":0,"prot":30.7,"gord":2.4},{"nome":"Carne, bovina, miolo de alcatra, sem gordura, cru","fonte":"TACO 369","kcal":163,"carb":0,"prot":21.6,"gord":7.8},{"nome":"Carne, bovina, miolo de alcatra, sem gordura, grelhado","fonte":"TACO 370","kcal":241,"carb":0,"prot":31.9,"gord":11.6},{"nome":"Carne, bovina, músculo, sem gordura, cozido","fonte":"TACO 371","kcal":194,"carb":0,"prot":31.2,"gord":6.7},{"nome":"Carne, bovina, músculo, sem gordura, cru","fonte":"TACO 372","kcal":142,"carb":0,"prot":21.6,"gord":5.5},{"nome":"Carne, bovina, paleta, com gordura, crua","fonte":"TACO 373","kcal":159,"carb":0,"prot":21.4,"gord":7.5},{"nome":"Carne, bovina, paleta, sem gordura, cozida","fonte":"TACO 374","kcal":194,"carb":0,"prot":29.7,"gord":7.4},{"nome":"Carne, bovina, paleta, sem gordura, crua","fonte":"TACO 375","kcal":141,"carb":0,"prot":21,"gord":5.7},{"nome":"Carne, bovina, patinho, sem gordura, cru","fonte":"TACO 376","kcal":133,"carb":0,"prot":21.7,"gord":4.5},{"nome":"Carne, bovina, patinho, sem gordura, grelhado","fonte":"TACO 377","kcal":219,"carb":0,"prot":35.9,"gord":7.3},{"nome":"Carne, bovina, peito, sem gordura, cozido","fonte":"TACO 378","kcal":338,"carb":0,"prot":22.2,"gord":27},{"nome":"Carne, bovina, peito, sem gordura, cru","fonte":"TACO 379","kcal":259,"carb":0,"prot":17.6,"gord":20.4},{"nome":"Carne, bovina, picanha, com gordura, crua","fonte":"TACO 380","kcal":213,"carb":0,"prot":18.8,"gord":14.7},{"nome":"Carne, bovina, picanha, com gordura, grelhada","fonte":"TACO 381","kcal":289,"carb":0,"prot":26.4,"gord":19.5},{"nome":"Carne, bovina, picanha, sem gordura, crua","fonte":"TACO 382","kcal":134,"carb":0,"prot":21.3,"gord":4.7},{"nome":"Carne, bovina, picanha, sem gordura, grelhada","fonte":"TACO 383","kcal":238,"carb":0,"prot":31.9,"gord":11.3},{"nome":"Carne, bovina, seca, cozida","fonte":"TACO 384","kcal":313,"carb":0,"prot":26.9,"gord":21.9},{"nome":"Carne, bovina, seca, crua","fonte":"TACO 385","kcal":313,"carb":0,"prot":19.7,"gord":25.4},{"nome":"Coxinha de frango, frita","fonte":"TACO 386","kcal":283,"carb":34.5,"prot":9.6,"gord":11.8},{"nome":"Croquete, de carne, cru","fonte":"TACO 387","kcal":246,"carb":13.9,"prot":12,"gord":15.6},{"nome":"Croquete, de carne, frito","fonte":"TACO 388","kcal":347,"carb":18.1,"prot":16.9,"gord":22.7},{"nome":"Empada de frango, pré-cozida, assada","fonte":"TACO 389","kcal":358,"carb":47.5,"prot":6.9,"gord":15.6},{"nome":"Empada, de frango, pré-cozida","fonte":"TACO 390","kcal":377,"carb":35.5,"prot":7.3,"gord":22.9},{"nome":"Frango, asa, com pele, crua","fonte":"TACO 391","kcal":213,"carb":0,"prot":18.1,"gord":15.1},{"nome":"Frango, caipira, inteiro, com pele, cozido","fonte":"TACO 392","kcal":243,"carb":0,"prot":23.9,"gord":15.6},{"nome":"Frango, caipira, inteiro, sem pele, cozido","fonte":"TACO 393","kcal":196,"carb":0,"prot":29.6,"gord":7.7},{"nome":"Frango, coração, cru","fonte":"TACO 394","kcal":222,"carb":0,"prot":12.6,"gord":18.6},{"nome":"Frango, coração, grelhado","fonte":"TACO 395","kcal":207,"carb":0.6,"prot":22.4,"gord":12.1},{"nome":"Frango, coxa, com pele, assada","fonte":"TACO 396","kcal":215,"carb":0.1,"prot":28.5,"gord":10.4},{"nome":"Frango, coxa, com pele, crua","fonte":"TACO 397","kcal":161,"carb":0,"prot":17.1,"gord":9.8},{"nome":"Frango, coxa, sem pele, cozida","fonte":"TACO 398","kcal":167,"carb":0,"prot":26.9,"gord":5.8},{"nome":"Frango, coxa, sem pele, crua","fonte":"TACO 399","kcal":120,"carb":0,"prot":17.8,"gord":4.9},{"nome":"Frango, fígado, cru","fonte":"TACO 400","kcal":106,"carb":0,"prot":17.6,"gord":3.5},{"nome":"Frango, filé, à milanesa","fonte":"TACO 401","kcal":221,"carb":7.5,"prot":28.5,"gord":7.8},{"nome":"Frango, inteiro, com pele, cru","fonte":"TACO 402","kcal":226,"carb":0,"prot":16.4,"gord":17.3},{"nome":"Frango, inteiro, sem pele, assado","fonte":"TACO 403","kcal":187,"carb":0,"prot":28,"gord":7.5},{"nome":"Frango, inteiro, sem pele, cozido","fonte":"TACO 404","kcal":170,"carb":0,"prot":25,"gord":7.1},{"nome":"Frango, inteiro, sem pele, cru","fonte":"TACO 405","kcal":129,"carb":0,"prot":20.6,"gord":4.6},{"nome":"Frango, peito, com pele, assado","fonte":"TACO 406","kcal":212,"carb":0,"prot":33.4,"gord":7.6},{"nome":"Frango, peito, com pele, cru","fonte":"TACO 407","kcal":149,"carb":0,"prot":20.8,"gord":6.7},{"nome":"Frango, peito, sem pele, cozido","fonte":"TACO 408","kcal":163,"carb":0,"prot":31.5,"gord":3.2},{"nome":"Frango, peito, sem pele, cru","fonte":"TACO 409","kcal":119,"carb":0,"prot":21.5,"gord":3},{"nome":"Frango, peito, sem pele, grelhado","fonte":"TACO 410","kcal":159,"carb":0,"prot":32,"gord":2.5},{"nome":"Frango, sobrecoxa, com pele, assada","fonte":"TACO 411","kcal":260,"carb":0,"prot":28.7,"gord":15.2},{"nome":"Frango, sobrecoxa, com pele, crua","fonte":"TACO 412","kcal":255,"carb":0,"prot":15.5,"gord":20.9},{"nome":"Frango, sobrecoxa, sem pele, assada","fonte":"TACO 413","kcal":233,"carb":0,"prot":29.2,"gord":12},{"nome":"Frango, sobrecoxa, sem pele, crua","fonte":"TACO 414","kcal":162,"carb":0,"prot":17.6,"gord":9.6},{"nome":"Hambúrguer, bovino, cru","fonte":"TACO 415","kcal":215,"carb":4.2,"prot":13.2,"gord":16.2},{"nome":"Hambúrguer, bovino, frito","fonte":"TACO 416","kcal":258,"carb":6.3,"prot":20,"gord":17},{"nome":"Hambúrguer, bovino, grelhado","fonte":"TACO 417","kcal":210,"carb":11.3,"prot":13.2,"gord":12.4},{"nome":"Lingüiça, frango, crua","fonte":"TACO 418","kcal":218,"carb":0,"prot":14.2,"gord":17.4},{"nome":"Lingüiça, frango, frita","fonte":"TACO 419","kcal":245,"carb":0,"prot":18.3,"gord":18.5},{"nome":"Lingüiça, frango, grelhada","fonte":"TACO 420","kcal":244,"carb":0,"prot":18.2,"gord":18.4},{"nome":"Lingüiça, porco, crua","fonte":"TACO 421","kcal":227,"carb":0,"prot":16.1,"gord":17.6},{"nome":"Lingüiça, porco, frita","fonte":"TACO 422","kcal":280,"carb":0,"prot":20.5,"gord":21.3},{"nome":"Lingüiça, porco, grelhada","fonte":"TACO 423","kcal":296,"carb":0,"prot":23.2,"gord":21.9},{"nome":"Mortadela","fonte":"TACO 424","kcal":269,"carb":5.8,"prot":12,"gord":21.6},{"nome":"Peru, congelado, assado","fonte":"TACO 425","kcal":163,"carb":0,"prot":26.2,"gord":5.7},{"nome":"Peru, congelado, cru","fonte":"TACO 426","kcal":94,"carb":0,"prot":18.1,"gord":1.8},{"nome":"Porco, bisteca, crua","fonte":"TACO 427","kcal":164,"carb":0,"prot":21.5,"gord":8},{"nome":"Porco, bisteca, frita","fonte":"TACO 428","kcal":311,"carb":0,"prot":33.7,"gord":18.5},{"nome":"Porco, bisteca, grelhada","fonte":"TACO 429","kcal":280,"carb":0,"prot":28.9,"gord":17.4},{"nome":"Porco, costela, assada","fonte":"TACO 430","kcal":402,"carb":0,"prot":30.2,"gord":30.3},{"nome":"Porco, costela, crua","fonte":"TACO 431","kcal":256,"carb":0,"prot":18,"gord":19.8},{"nome":"Porco, lombo, assado","fonte":"TACO 432","kcal":210,"carb":0,"prot":35.7,"gord":6.4},{"nome":"Porco, lombo, cru","fonte":"TACO 433","kcal":176,"carb":0,"prot":22.6,"gord":8.8},{"nome":"Porco, orelha, salgada, crua","fonte":"TACO 434","kcal":258,"carb":0,"prot":18.5,"gord":19.9},{"nome":"Porco, pernil, assado","fonte":"TACO 435","kcal":262,"carb":0,"prot":32.1,"gord":13.9},{"nome":"Porco, pernil, cru","fonte":"TACO 436","kcal":186,"carb":0,"prot":20.1,"gord":11.1},{"nome":"Porco, rabo, salgado, cru","fonte":"TACO 437","kcal":377,"carb":0,"prot":15.6,"gord":34.5},{"nome":"Presunto, com capa de gordura","fonte":"TACO 438","kcal":128,"carb":1.4,"prot":14.4,"gord":6.8},{"nome":"Presunto, sem capa de gordura","fonte":"TACO 439","kcal":94,"carb":2.1,"prot":14.3,"gord":2.7},{"nome":"Quibe, assado","fonte":"TACO 440","kcal":136,"carb":12.9,"prot":14.6,"gord":2.7},{"nome":"Quibe, cru","fonte":"TACO 441","kcal":109,"carb":10.8,"prot":12.4,"gord":1.7},{"nome":"Quibe, frito","fonte":"TACO 442","kcal":254,"carb":12.3,"prot":14.9,"gord":15.8},{"nome":"Salame","fonte":"TACO 443","kcal":398,"carb":2.9,"prot":25.8,"gord":30.6},{"nome":"Toucinho, cru","fonte":"TACO 444","kcal":593,"carb":0,"prot":11.5,"gord":60.3},{"nome":"Toucinho, frito","fonte":"TACO 445","kcal":697,"carb":0,"prot":27.3,"gord":64.3},{"nome":"Bebida láctea, pêssego","fonte":"TACO 446","kcal":55,"carb":7.6,"prot":2.1,"gord":1.9},{"nome":"Creme de Leite","fonte":"TACO 447","kcal":221,"carb":4.5,"prot":1.5,"gord":22.5},{"nome":"Iogurte, natural","fonte":"TACO 448","kcal":51,"carb":1.9,"prot":4.1,"gord":3},{"nome":"Iogurte, natural, desnatado","fonte":"TACO 449","kcal":41,"carb":5.8,"prot":3.8,"gord":0.3},{"nome":"Iogurte, sabor morango","fonte":"TACO 451","kcal":70,"carb":9.7,"prot":2.7,"gord":2.3},{"nome":"Iogurte, sabor pêssego","fonte":"TACO 452","kcal":68,"carb":9.4,"prot":2.5,"gord":2.3},{"nome":"Leite, condensado","fonte":"TACO 453","kcal":313,"carb":57,"prot":7.7,"gord":6.7},{"nome":"Leite, de cabra","fonte":"TACO 454","kcal":66,"carb":5.2,"prot":3.1,"gord":3.8},{"nome":"Leite, de vaca, achocolatado","fonte":"TACO 455","kcal":83,"carb":14.2,"prot":2.1,"gord":2.2},{"nome":"Leite, de vaca, desnatado, pó","fonte":"TACO 456","kcal":362,"carb":53,"prot":34.7,"gord":0.9},{"nome":"Leite, de vaca, integral, pó","fonte":"TACO 459","kcal":497,"carb":39.2,"prot":25.4,"gord":26.9},{"nome":"Leite, fermentado","fonte":"TACO 460","kcal":70,"carb":15.7,"prot":1.9,"gord":0.1},{"nome":"Queijo, minas, frescal","fonte":"TACO 461","kcal":264,"carb":3.2,"prot":17.4,"gord":20.2},{"nome":"Queijo, minas, meia cura","fonte":"TACO 462","kcal":321,"carb":3.6,"prot":21.2,"gord":24.6},{"nome":"Queijo, mozarela","fonte":"TACO 463","kcal":330,"carb":3,"prot":22.6,"gord":25.2},{"nome":"Queijo, parmesão","fonte":"TACO 464","kcal":453,"carb":1.7,"prot":35.6,"gord":33.5},{"nome":"Queijo, pasteurizado","fonte":"TACO 465","kcal":303,"carb":5.7,"prot":9.4,"gord":27.4},{"nome":"Queijo, petit suisse, morango","fonte":"TACO 466","kcal":121,"carb":18.5,"prot":5.8,"gord":2.8},{"nome":"Queijo, prato","fonte":"TACO 467","kcal":360,"carb":1.9,"prot":22.7,"gord":29.1},{"nome":"Queijo, requeijão, cremoso","fonte":"TACO 468","kcal":257,"carb":2.4,"prot":9.6,"gord":23.4},{"nome":"Queijo, ricota","fonte":"TACO 469","kcal":140,"carb":3.8,"prot":12.6,"gord":8.1},{"nome":"Bebida isotônica, sabores variados","fonte":"TACO 470","kcal":26,"carb":6.4,"prot":0,"gord":0},{"nome":"Café, infusão 10%","fonte":"TACO 471","kcal":9,"carb":1.5,"prot":0.7,"gord":0.1},{"nome":"Cana, aguardente","fonte":"TACO 472","kcal":216,"carb":0,"prot":0,"gord":0},{"nome":"Cana, caldo de","fonte":"TACO 473","kcal":65,"carb":18.2,"prot":0,"gord":0},{"nome":"Cerveja, pilsen","fonte":"TACO 474","kcal":41,"carb":3.3,"prot":0.6,"gord":0},{"nome":"Chá, erva-doce, infusão 5%","fonte":"TACO 475","kcal":1,"carb":0.4,"prot":0,"gord":0},{"nome":"Chá, mate, infusão 5%","fonte":"TACO 476","kcal":3,"carb":0.6,"prot":0,"gord":0.1},{"nome":"Chá, preto, infusão 5%","fonte":"TACO 477","kcal":2,"carb":0.6,"prot":0,"gord":0},{"nome":"Coco, água de","fonte":"TACO 478","kcal":22,"carb":5.3,"prot":0,"gord":0},{"nome":"Refrigerante, tipo água tônica","fonte":"TACO 479","kcal":31,"carb":8,"prot":0,"gord":0},{"nome":"Refrigerante, tipo cola","fonte":"TACO 480","kcal":34,"carb":8.7,"prot":0,"gord":0},{"nome":"Refrigerante, tipo guaraná","fonte":"TACO 481","kcal":39,"carb":10,"prot":0,"gord":0},{"nome":"Refrigerante, tipo laranja","fonte":"TACO 482","kcal":46,"carb":11.8,"prot":0,"gord":0},{"nome":"Refrigerante, tipo limão","fonte":"TACO 483","kcal":40,"carb":10.3,"prot":0,"gord":0},{"nome":"Omelete, de queijo","fonte":"TACO 484","kcal":268,"carb":0.4,"prot":15.6,"gord":22},{"nome":"Ovo, de codorna, inteiro, cru","fonte":"TACO 485","kcal":177,"carb":0.8,"prot":13.7,"gord":12.7},{"nome":"Ovo, de galinha, clara, cozida/10minutos","fonte":"TACO 486","kcal":59,"carb":0,"prot":13.4,"gord":0.1},{"nome":"Ovo, de galinha, gema, cozida/10minutos","fonte":"TACO 487","kcal":353,"carb":1.6,"prot":15.9,"gord":30.8},{"nome":"Ovo, de galinha, inteiro, cozido/10minutos","fonte":"TACO 488","kcal":146,"carb":0.6,"prot":13.3,"gord":9.5},{"nome":"Ovo, de galinha, inteiro, cru","fonte":"TACO 489","kcal":143,"carb":1.6,"prot":13,"gord":8.9},{"nome":"Ovo, de galinha, inteiro, frito","fonte":"TACO 490","kcal":240,"carb":1.2,"prot":15.6,"gord":18.6},{"nome":"Achocolatado, pó","fonte":"TACO 491","kcal":401,"carb":91.2,"prot":4.2,"gord":2.2},{"nome":"Açúcar, cristal","fonte":"TACO 492","kcal":387,"carb":99.6,"prot":0.3,"gord":0},{"nome":"Açúcar, mascavo","fonte":"TACO 493","kcal":369,"carb":94.5,"prot":0.8,"gord":0.1},{"nome":"Açúcar, refinado","fonte":"TACO 494","kcal":387,"carb":99.5,"prot":0.3,"gord":0},{"nome":"Chocolate, ao leite","fonte":"TACO 495","kcal":540,"carb":59.6,"prot":7.2,"gord":30.3},{"nome":"Chocolate, ao leite, com castanha do Pará","fonte":"TACO 496","kcal":559,"carb":55.4,"prot":7.4,"gord":34.2},{"nome":"Chocolate, ao leite, dietético","fonte":"TACO 497","kcal":557,"carb":56.3,"prot":6.9,"gord":33.8},{"nome":"Chocolate, meio amargo","fonte":"TACO 498","kcal":475,"carb":62.4,"prot":4.9,"gord":29.9},{"nome":"Cocada branca","fonte":"TACO 499","kcal":449,"carb":81.4,"prot":1.1,"gord":13.6},{"nome":"Doce, de abóbora, cremoso","fonte":"TACO 500","kcal":199,"carb":54.6,"prot":0.9,"gord":0.2},{"nome":"Doce, de leite, cremoso","fonte":"TACO 501","kcal":306,"carb":59.5,"prot":5.5,"gord":6},{"nome":"Geléia, mocotó, natural","fonte":"TACO 502","kcal":106,"carb":24.2,"prot":2.1,"gord":0.1},{"nome":"Glicose de milho","fonte":"TACO 503","kcal":292,"carb":79.4,"prot":0,"gord":0},{"nome":"Maria mole","fonte":"TACO 504","kcal":301,"carb":73.6,"prot":3.8,"gord":0.2},{"nome":"Maria mole, coco queimado","fonte":"TACO 505","kcal":307,"carb":75.1,"prot":3.9,"gord":0.1},{"nome":"Marmelada","fonte":"TACO 506","kcal":257,"carb":70.8,"prot":0.4,"gord":0.1},{"nome":"Mel, de abelha","fonte":"TACO 507","kcal":309,"carb":84,"prot":0,"gord":0},{"nome":"Melado","fonte":"TACO 508","kcal":297,"carb":76.6,"prot":0,"gord":0},{"nome":"Quindim","fonte":"TACO 509","kcal":411,"carb":46.3,"prot":4.7,"gord":24.4},{"nome":"Rapadura","fonte":"TACO 510","kcal":352,"carb":90.8,"prot":1,"gord":0.1},{"nome":"Café, pó, torrado","fonte":"TACO 511","kcal":419,"carb":65.8,"prot":14.7,"gord":11.9},{"nome":"Capuccino, pó","fonte":"TACO 512","kcal":417,"carb":73.6,"prot":11.3,"gord":8.6},{"nome":"Fermento em pó, químico","fonte":"TACO 513","kcal":90,"carb":43.9,"prot":0.5,"gord":0.1},{"nome":"Fermento, biológico, levedura, tablete","fonte":"TACO 514","kcal":90,"carb":7.7,"prot":17,"gord":1.5},{"nome":"Gelatina, sabores variados, pó","fonte":"TACO 515","kcal":380,"carb":89.2,"prot":8.9,"gord":0},{"nome":"Shoyu","fonte":"TACO 518","kcal":61,"carb":11.6,"prot":3.3,"gord":0.3},{"nome":"Tempero a base de sal","fonte":"TACO 519","kcal":21,"carb":2.1,"prot":2.7,"gord":0.3},{"nome":"Azeitona, preta, conserva","fonte":"TACO 520","kcal":194,"carb":5.5,"prot":1.2,"gord":20.3},{"nome":"Azeitona, verde, conserva","fonte":"TACO 521","kcal":137,"carb":4.1,"prot":0.9,"gord":14.2},{"nome":"Chantilly, spray, com gordura vegetal","fonte":"TACO 522","kcal":315,"carb":16.9,"prot":0.5,"gord":27.3},{"nome":"Leite, de coco","fonte":"TACO 523","kcal":166,"carb":2.2,"prot":1,"gord":18.4},{"nome":"Maionese, tradicional com ovos","fonte":"TACO 524","kcal":302,"carb":7.9,"prot":0.6,"gord":30.5},{"nome":"Acarajé","fonte":"TACO 525","kcal":289,"carb":19.1,"prot":8.3,"gord":19.9},{"nome":"Arroz carreteiro","fonte":"TACO 526","kcal":154,"carb":11.6,"prot":10.8,"gord":7.1},{"nome":"Baião de dois, arroz e feijão-de-corda","fonte":"TACO 527","kcal":136,"carb":20.4,"prot":6.2,"gord":3.2},{"nome":"Barreado","fonte":"TACO 528","kcal":165,"carb":0.2,"prot":18.3,"gord":9.5},{"nome":"Bife à cavalo, com contra filé","fonte":"TACO 529","kcal":291,"carb":0,"prot":23.7,"gord":21.1},{"nome":"Bolinho de arroz","fonte":"TACO 530","kcal":274,"carb":41.7,"prot":8,"gord":8.3},{"nome":"Camarão à baiana","fonte":"TACO 531","kcal":101,"carb":3.2,"prot":7.9,"gord":6},{"nome":"Charuto, de repolho","fonte":"TACO 532","kcal":78,"carb":10.1,"prot":6.8,"gord":1.1},{"nome":"Cuscuz, de milho, cozido com sal","fonte":"TACO 533","kcal":113,"carb":25.3,"prot":2.2,"gord":0.7},{"nome":"Cuscuz, paulista","fonte":"TACO 534","kcal":142,"carb":22.5,"prot":2.6,"gord":4.6},{"nome":"Cuxá, molho","fonte":"TACO 535","kcal":80,"carb":5.7,"prot":5.6,"gord":3.6},{"nome":"Dobradinha","fonte":"TACO 536","kcal":125,"carb":0,"prot":19.8,"gord":4.4},{"nome":"Estrogonofe de carne","fonte":"TACO 537","kcal":173,"carb":3,"prot":15,"gord":10.8},{"nome":"Estrogonofe de frango","fonte":"TACO 538","kcal":157,"carb":2.6,"prot":17.6,"gord":8},{"nome":"Feijão tropeiro mineiro","fonte":"TACO 539","kcal":152,"carb":19.6,"prot":10.2,"gord":6.8},{"nome":"Feijoada","fonte":"TACO 540","kcal":117,"carb":11.6,"prot":8.7,"gord":6.5},{"nome":"Frango, com açafrão","fonte":"TACO 541","kcal":113,"carb":4.1,"prot":9.7,"gord":6.2},{"nome":"Macarrão, molho bolognesa","fonte":"TACO 542","kcal":120,"carb":22.5,"prot":4.9,"gord":0.9},{"nome":"Maniçoba","fonte":"TACO 543","kcal":134,"carb":3.4,"prot":10,"gord":8.7},{"nome":"Quibebe","fonte":"TACO 544","kcal":86,"carb":6.6,"prot":8.6,"gord":2.7},{"nome":"Salada, de legumes, com maionese","fonte":"TACO 545","kcal":96,"carb":8.9,"prot":1.1,"gord":7},{"nome":"Salada, de legumes, cozida no vapor","fonte":"TACO 546","kcal":35,"carb":7.1,"prot":2,"gord":0.3},{"nome":"Salpicão, de frango","fonte":"TACO 547","kcal":148,"carb":4.6,"prot":13.9,"gord":7.8},{"nome":"Sarapatel","fonte":"TACO 548","kcal":123,"carb":1.1,"prot":18.5,"gord":4.4},{"nome":"Tabule","fonte":"TACO 549","kcal":57,"carb":10.6,"prot":2,"gord":1.2},{"nome":"Tacacá","fonte":"TACO 550","kcal":47,"carb":3.4,"prot":7,"gord":0.4},{"nome":"Tapioca, com manteiga","fonte":"TACO 551","kcal":348,"carb":63.6,"prot":0.1,"gord":10.9},{"nome":"Tucupi, com pimenta-de-cheiro","fonte":"TACO 552","kcal":27,"carb":4.7,"prot":2.1,"gord":0.3},{"nome":"Vaca atolada","fonte":"TACO 553","kcal":145,"carb":10.1,"prot":5.1,"gord":9.3},{"nome":"Vatapá","fonte":"TACO 554","kcal":255,"carb":9.7,"prot":6,"gord":23.2},{"nome":"Virado à paulista","fonte":"TACO 555","kcal":307,"carb":14.1,"prot":10.2,"gord":25.6},{"nome":"Yakisoba","fonte":"TACO 556","kcal":113,"carb":18.3,"prot":7.5,"gord":2.6},{"nome":"Amendoim, grão, cru","fonte":"TACO 557","kcal":544,"carb":20.3,"prot":27.2,"gord":43.9},{"nome":"Amendoim, torrado, salgado","fonte":"TACO 558","kcal":606,"carb":18.7,"prot":22.5,"gord":54},{"nome":"Ervilha, em vagem","fonte":"TACO 559","kcal":88,"carb":14.2,"prot":7.5,"gord":0.5},{"nome":"Ervilha, enlatada, drenada","fonte":"TACO 560","kcal":74,"carb":13.4,"prot":4.6,"gord":0.4},{"nome":"Feijão, carioca, cozido","fonte":"TACO 561","kcal":76,"carb":13.6,"prot":4.8,"gord":0.5},{"nome":"Feijão, carioca, cru","fonte":"TACO 562","kcal":329,"carb":61.2,"prot":20,"gord":1.3},{"nome":"Feijão, fradinho, cozido","fonte":"TACO 563","kcal":78,"carb":13.5,"prot":5.1,"gord":0.6},{"nome":"Feijão, fradinho, cru","fonte":"TACO 564","kcal":339,"carb":61.2,"prot":20.2,"gord":2.4},{"nome":"Feijão, jalo, cozido","fonte":"TACO 565","kcal":93,"carb":16.5,"prot":6.1,"gord":0.5},{"nome":"Feijão, jalo, cru","fonte":"TACO 566","kcal":328,"carb":61.5,"prot":20.1,"gord":0.9},{"nome":"Feijão, preto, cozido","fonte":"TACO 567","kcal":77,"carb":14,"prot":4.5,"gord":0.5},{"nome":"Feijão, preto, cru","fonte":"TACO 568","kcal":324,"carb":58.8,"prot":21.3,"gord":1.2},{"nome":"Feijão, rajado, cozido","fonte":"TACO 569","kcal":85,"carb":15.3,"prot":5.5,"gord":0.4},{"nome":"Feijão, rajado, cru","fonte":"TACO 570","kcal":326,"carb":62.9,"prot":17.3,"gord":1.2},{"nome":"Feijão, rosinha, cozido","fonte":"TACO 571","kcal":68,"carb":11.8,"prot":4.5,"gord":0.5},{"nome":"Feijão, rosinha, cru","fonte":"TACO 572","kcal":337,"carb":62.2,"prot":20.9,"gord":1.3},{"nome":"Feijão, roxo, cozido","fonte":"TACO 573","kcal":77,"carb":12.9,"prot":5.7,"gord":0.5},{"nome":"Feijão, roxo, cru","fonte":"TACO 574","kcal":331,"carb":60,"prot":22.2,"gord":1.2},{"nome":"Grão-de-bico, cru","fonte":"TACO 575","kcal":355,"carb":57.9,"prot":21.2,"gord":5.4},{"nome":"Guandu, cru","fonte":"TACO 576","kcal":344,"carb":64,"prot":19,"gord":2.1},{"nome":"Lentilha, cozida","fonte":"TACO 577","kcal":93,"carb":16.3,"prot":6.3,"gord":0.5},{"nome":"Lentilha, crua","fonte":"TACO 578","kcal":339,"carb":62,"prot":23.2,"gord":0.8},{"nome":"Paçoca, amendoim","fonte":"TACO 579","kcal":487,"carb":52.4,"prot":16,"gord":26.1},{"nome":"Pé-de-moleque, amendoim","fonte":"TACO 580","kcal":503,"carb":54.7,"prot":13.2,"gord":28},{"nome":"Soja, farinha","fonte":"TACO 581","kcal":404,"carb":38.4,"prot":36,"gord":14.6},{"nome":"Soja, extrato solúvel, natural, fluido","fonte":"TACO 582","kcal":39,"carb":4.3,"prot":2.4,"gord":1.6},{"nome":"Soja, extrato solúvel, pó","fonte":"TACO 583","kcal":459,"carb":28.5,"prot":35.7,"gord":26.2},{"nome":"Soja, queijo (tofu)","fonte":"TACO 584","kcal":64,"carb":2.1,"prot":6.6,"gord":4},{"nome":"Tremoço, cru","fonte":"TACO 585","kcal":381,"carb":43.8,"prot":33.6,"gord":10.3},{"nome":"Tremoço, em conserva","fonte":"TACO 586","kcal":121,"carb":12.4,"prot":11.1,"gord":3.8},{"nome":"Amêndoa, torrada, salgada","fonte":"TACO 587","kcal":581,"carb":29.5,"prot":18.6,"gord":47.3},{"nome":"Castanha-de-caju, torrada, salgada","fonte":"TACO 588","kcal":570,"carb":29.1,"prot":18.5,"gord":46.3},{"nome":"Castanha-do-Brasil, crua","fonte":"TACO 589","kcal":643,"carb":15.1,"prot":14.5,"gord":63.5},{"nome":"Coco, cru","fonte":"TACO 590","kcal":406,"carb":10.4,"prot":3.7,"gord":42},{"nome":"Farinha, de mesocarpo de babaçu, crua","fonte":"TACO 592","kcal":329,"carb":79.2,"prot":1.4,"gord":0.2},{"nome":"Gergelim, semente","fonte":"TACO 593","kcal":584,"carb":21.6,"prot":21.2,"gord":50.4},{"nome":"Linhaça, semente","fonte":"TACO 594","kcal":495,"carb":43.3,"prot":14.1,"gord":32.3},{"nome":"Pinhão, cozido","fonte":"TACO 595","kcal":174,"carb":43.9,"prot":3,"gord":0.7},{"nome":"Pupunha, cozida","fonte":"TACO 596","kcal":219,"carb":29.6,"prot":2.5,"gord":12.8},{"nome":"Noz, crua","fonte":"TACO 597","kcal":620,"carb":18.4,"prot":14,"gord":59.4}];
+
+/* Plano padrão de cada dia. Itens referenciam o alimento pelo NOME (key). */
+const DEFAULT_MEALS = [{"id":"cafe","nome":"Café da manhã","icon":"🍳","tint":"#fef3c7","itens":[{"key":"Pão francês","qtd":100},{"key":"Ovo inteiro cozido","qtd":200},{"key":"Ricota","qtd":30}]},{"id":"almoco","nome":"Almoço","icon":"🍛","tint":"#dcfce7","itens":[{"key":"Arroz branco cozido","qtd":400},{"key":"Frango grelhado (peito)","qtd":180}]},{"id":"pre","nome":"Pré-treino","icon":"⚡","tint":"#e0e7ff","itens":[{"key":"Aveia em flocos","qtd":60},{"key":"Mel","qtd":25},{"key":"Banana prata","qtd":160}]},{"id":"pos","nome":"Pós-treino","icon":"🥤","tint":"#dbeafe","itens":[{"key":"Aveia em flocos","qtd":50},{"key":"Whey protein","qtd":30},{"key":"Pasta de amendoim","qtd":30},{"key":"Leite integral","qtd":200},{"key":"Banana prata","qtd":90}]},{"id":"jantar","nome":"Jantar","icon":"🍽️","tint":"#fae8ff","itens":[{"key":"Arroz branco cozido","qtd":400},{"key":"Frango grelhado (peito)","qtd":180}]}];
+
+const STORAGE_KEY = 'dietPlanner.v2';
+const { createApp } = Vue;
+
+createApp({
+  data() {
+    const byName = {};
+    DB.forEach((f, i) => { if (byName[f.nome] === undefined) byName[f.nome] = i; });
+    return {
+      db: DB, byName,
+      days: {},                 // { 'YYYY-MM-DD': { meals:[...] } }
+      date: this.todayStr(),
+      goals: { kcal: 3400, prot: 180, carb: 540, gord: 65 },
+      goalsOpen: false, historyOpen: false,
+      sheet: { open: false, mode: 'change', mi: null, ii: null, q: '' },
+      macroColor: { prot: '#3b82f6', carb: '#22c55e', gord: '#f59e0b' },
+      macroMeta: [{ key:'prot', label:'Proteína', color:'#3b82f6' }, { key:'carb', label:'Carboidrato', color:'#22c55e' }, { key:'gord', label:'Gordura', color:'#f59e0b' }],
+      ringCirc: 2 * Math.PI * 52,
+      _uid: 1,
+    };
+  },
+
+  computed: {
+    isToday() { return this.date === this.todayStr(); },
+    dateLabel() {
+      const d = this.parseDate(this.date);
+      if (this.date === this.todayStr()) return 'Hoje, ' + d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+      return d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+    },
+    meals() { const d = this.days[this.date]; return d ? d.meals : []; },
+    totals() { return this.dayTotals(this.meals); },
+    remaining() { return this.r1(this.goals.kcal - this.totals.kcal); },
+    ringColor() { return this.totals.kcal > this.goals.kcal ? '#f59e0b' : '#6366f1'; },
+    sheetTitle() { return this.sheet.mode === 'sub' ? 'Substituir alimento' : this.sheet.mode === 'add' ? 'Adicionar alimento' : 'Trocar alimento'; },
+    subOrigin() { if (this.sheet.mode !== 'sub' || this.sheet.mi === null) return null; return this.meals[this.sheet.mi].itens[this.sheet.ii]; },
+    subOriginName() { return this.subOrigin ? this.food(this.subOrigin).nome : ''; },
+    subTargetKcal() { return this.subOrigin ? this.itemKcal(this.subOrigin) : 0; },
+    sheetResults() {
+      const q = this.norm(this.sheet.q.trim());
+      let list = this.db.map((f, idx) => ({ ...f, idx }));
+      if (this.sheet.mode === 'sub' && !q && this.subOrigin) {
+        const origin = this.food(this.subOrigin);
+        return list.filter(f => f.kcal > 0 && f.nome !== origin.nome)
+                   .map(f => ({ ...f, _d: this.macroDist(origin, f) }))
+                   .sort((a, b) => a._d - b._d).slice(0, 12);
+      }
+      if (q) list = list.filter(f => this.norm(f.nome).includes(q)); else list = list.slice(0, 80);
+      return list.slice(0, 120);
+    },
+    week() {
+      const out = [];
+      const base = this.parseDate(this.todayStr());
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(base); d.setDate(base.getDate() - i);
+        const key = this.fmtDate(d);
+        const day = this.days[key];
+        const logged = !!(day && day.meals.some(m => m.itens.some(it => (it.qtd || 0) > 0)));
+        const totals = logged ? this.dayTotals(day.meals) : { kcal:0, carb:0, prot:0, gord:0 };
+        out.push({ date:key, dow:['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()], dom:d.getDate(),
+                   full:d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'short'}),
+                   logged, totals, over: totals.kcal > this.goals.kcal });
+      }
+      return out;
+    },
+    chartMax() { return Math.max(this.goals.kcal, ...this.week.map(d => d.totals.kcal)) * 1.1 || 1; },
+    weekStats() {
+      const days = this.week.filter(d => d.logged);
+      const n = days.length || 0;
+      const sum = days.reduce((a, d) => ({ kcal:a.kcal+d.totals.kcal, carb:a.carb+d.totals.carb, prot:a.prot+d.totals.prot, gord:a.gord+d.totals.gord }), {kcal:0,carb:0,prot:0,gord:0});
+      const div = n || 1;
+      return { n, kcal:this.r1(sum.kcal/div), carb:this.r1(sum.carb/div), prot:this.r1(sum.prot/div), gord:this.r1(sum.gord/div) };
+    },
+  },
+
+  methods: {
+    /* dates */
+    todayStr() { return this.fmtDate(new Date()); },
+    fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); },
+    parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); },
+    shiftDate(delta) { const d = this.parseDate(this.date); d.setDate(d.getDate()+delta); this.date = this.fmtDate(d); },
+    jump(date) { this.date = date; this.historyOpen = false; },
+
+    /* helpers */
+    r1(x) { return Math.round((Number(x)||0)*10)/10; },
+    fmt(x) { const n = this.r1(x); return Number.isInteger(n) ? String(n) : n.toFixed(1); },
+    fmtInt(x) { return Math.round(Number(x)||0).toLocaleString('pt-BR'); },
+    norm(s) { return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); },
+    food(it) { const i = this.byName[it.key]; return i !== undefined ? this.db[i] : { nome: it.key || '—', fonte: '(fora do banco)', kcal:0, carb:0, prot:0, gord:0 }; },
+    chip(k) { return { background: this.macroColor[k] + '1a', color: this.macroColor[k] }; },
+
+    /* calc: (per100 / 100) * qtd */
+    itemKcal(it) { return this.r1(this.food(it).kcal/100*(it.qtd||0)); },
+    itemCarb(it) { return this.r1(this.food(it).carb/100*(it.qtd||0)); },
+    itemProt(it) { return this.r1(this.food(it).prot/100*(it.qtd||0)); },
+    itemGord(it) { return this.r1(this.food(it).gord/100*(it.qtd||0)); },
+    mealTotals(meal) { const t={kcal:0,carb:0,prot:0,gord:0}; for (const it of meal.itens){ t.kcal+=this.itemKcal(it); t.carb+=this.itemCarb(it); t.prot+=this.itemProt(it); t.gord+=this.itemGord(it);} return {kcal:this.r1(t.kcal),carb:this.r1(t.carb),prot:this.r1(t.prot),gord:this.r1(t.gord)}; },
+    dayTotals(meals) { const t={kcal:0,carb:0,prot:0,gord:0}; for (const m of meals){ const s=this.mealTotals(m); t.kcal+=s.kcal; t.carb+=s.carb; t.prot+=s.prot; t.gord+=s.gord; } return {kcal:this.r1(t.kcal),carb:this.r1(t.carb),prot:this.r1(t.prot),gord:this.r1(t.gord)}; },
+    pct(cur, goal) { return goal > 0 ? Math.round(cur/goal*100) : 0; },
+    macroDist(a, b) { const fr=f=>{const k=f.kcal||1; return [f.carb*4/k, f.prot*4/k, f.gord*9/k];}; const fa=fr(a),fb=fr(b); return Math.abs(fa[0]-fb[0])+Math.abs(fa[1]-fb[1])+Math.abs(fa[2]-fb[2]); },
+    subGrams(f) { if (!this.subOrigin || !f.kcal) return 0; return this.r1(this.subTargetKcal / f.kcal * 100); },
+
+    /* meal/day ops */
+    toggle(mi) { this.meals[mi].collapsed = !this.meals[mi].collapsed; },
+    bump(it, d) { it.qtd = Math.max(0, this.r1((it.qtd||0)+d)); },
+    ensureDay(date) { if (!this.days[date]) this.days[date] = { meals: this.buildEmptyDay() }; },
+    // dia novo nasce VAZIO: só as 5 refeições, sem alimentos
+    buildEmptyDay() { return DEFAULT_MEALS.map(m => ({ id:m.id, nome:m.nome, icon:m.icon, tint:m.tint, collapsed:false, itens: [] })); },
+    // plano padrão (dieta bulk) — carregado sob demanda no botão "Carregar plano padrão"
+    buildPlanDay() { return DEFAULT_MEALS.map(m => ({ id:m.id, nome:m.nome, icon:m.icon, tint:m.tint, collapsed:false, itens: m.itens.map(it => ({ uid:this._uid++, key:it.key, qtd:it.qtd })) })); },
+    resetDay() { this.days[this.date] = { meals: this.buildEmptyDay() }; this.goalsOpen = false; },
+    loadPlan() { this.days[this.date] = { meals: this.buildPlanDay() }; this.goalsOpen = false; },
+    clearDay(date) {
+      const lbl = this.parseDate(date).toLocaleDateString('pt-BR', { day:'numeric', month:'short' });
+      if (!confirm('Limpar o dia ' + lbl + '? Os alimentos desse dia serão apagados.')) return;
+      const d = { ...this.days }; delete d[date]; this.days = d;
+      if (date === this.date) this.ensureDay(this.date);
+    },
+
+    openSheet(mode, mi, ii = null) { this.sheet = { open:true, mode, mi, ii, q:'' }; this.$nextTick(() => { if (this.$refs.searchInput) this.$refs.searchInput.focus(); }); },
+    closeSheet() { this.sheet.open = false; },
+    selectFood(idx) {
+      const { mode, mi, ii } = this.sheet; const name = this.db[idx].nome;
+      if (mode === 'add') this.meals[mi].itens.push({ uid:this._uid++, key:name, qtd:100 });
+      else if (mode === 'change') this.meals[mi].itens[ii].key = name;
+      else if (mode === 'sub') { const it = this.meals[mi].itens[ii]; const grams = this.subGrams(this.db[idx]); it.key = name; it.qtd = grams; }
+      this.closeSheet();
+    },
+    removeItem(mi, ii) { this.meals[mi].itens.splice(ii, 1); },
+
+    /* persistence */
+    serialize() {
+      const days = {};
+      for (const [k, v] of Object.entries(this.days)) days[k] = { meals: v.meals.map(m => ({ id:m.id, collapsed:m.collapsed, itens: m.itens.map(it => ({ key:it.key, qtd:it.qtd })) })) };
+      return { goals: this.goals, days };
+    },
+    save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.serialize())); } catch(e){} },
+    hydrate(data, { merge = false } = {}) {
+      if (!data) return;
+      if (data.goals) this.goals = { ...this.goals, ...data.goals };
+      const days = merge ? { ...this.days } : {};
+      if (data.days) for (const [k, v] of Object.entries(data.days)) {
+        days[k] = { meals: (v.meals || []).map(m => ({ id:m.id, nome:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).nome || m.nome, icon:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).icon || m.icon, tint:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).tint || m.tint, collapsed:!!m.collapsed, itens:(m.itens||[]).map(it => ({ uid:this._uid++, key:it.key, qtd:it.qtd })) })) };
+      }
+      this.days = days;
+    },
+    load() {
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e){}
+      if (!data) { // migra do v1 (formato antigo: { goals, meals:[{id,collapsed,itens:[{fi,qtd}]}] })
+        try {
+          const old = JSON.parse(localStorage.getItem('dietPlanner.v1'));
+          if (old && old.meals) {
+            if (old.goals) this.goals = { ...this.goals, ...old.goals };
+            this.days[this.todayStr()] = { meals: old.meals.map(m => ({ id:m.id, nome:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).nome, icon:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).icon, tint:(DEFAULT_MEALS.find(x=>x.id===m.id)||{}).tint, collapsed:!!m.collapsed, itens:m.itens.map(it => ({ uid:this._uid++, key:(this.db[it.fi]||{}).nome, qtd:it.qtd })) })) };
+          }
+        } catch(e){}
+      } else this.hydrate(data);
+      this.ensureDay(this.date);
+    },
+
+    /* backup */
+    exportData() {
+      const blob = new Blob([JSON.stringify(this.serialize(), null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'meu-plano-' + this.todayStr() + '.json';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    importData(ev) {
+      const file = ev.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { const data = JSON.parse(reader.result); this.hydrate(data, { merge: true }); this.ensureDay(this.date); this.save(); alert('Dados importados com sucesso!'); }
+        catch(e) { alert('Arquivo inválido.'); }
+        ev.target.value = '';
+      };
+      reader.readAsText(file);
+    },
+  },
+
+  watch: {
+    days: { handler() { this.save(); }, deep: true },
+    goals: { handler() { this.save(); }, deep: true },
+    date() { this.ensureDay(this.date); },
+  },
+
+  mounted() {
+    this.load();
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  },
+}).mount('#app');
+</script>
+<style>[v-cloak]{display:none}</style>
+</body>
+</html>
