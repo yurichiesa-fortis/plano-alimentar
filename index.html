@@ -196,8 +196,10 @@
       <section v-for="(t, ti) in workouts" :key="t.uid" class="bg-white rounded-3xl shadow-sm ring-1 ring-slate-100 overflow-hidden">
         <div class="flex items-center gap-2.5 px-4 py-3">
           <div class="h-9 w-9 shrink-0 grid place-items-center rounded-2xl bg-brand/10 text-brand"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7v10M18 7v10M3 9.5v5M21 9.5v5M6 12h12"/></svg></div>
-          <input v-model="t.nome" class="flex-1 min-w-0 font-bold text-ink bg-transparent outline-none focus:bg-slate-100 rounded-lg px-1.5 py-1 -ml-1.5" placeholder="Nome do treino" />
-          <span class="text-[10px] text-slate-400 font-semibold tnum shrink-0">{{ treinoStats(t).nEx }} ex · {{ treinoStats(t).nS }} séries</span>
+          <div class="flex-1 min-w-0">
+            <input v-model="t.nome" class="w-full font-bold text-ink bg-transparent outline-none focus:bg-slate-100 rounded-lg px-1.5 py-1 -ml-1.5" placeholder="Nome do treino" />
+            <p class="text-[10px] text-slate-400 font-semibold tnum px-1.5 -ml-1.5">{{ treinoStats(t).nEx }} ex · {{ treinoStats(t).nS }} séries</p>
+          </div>
           <button @click="toggleTreino(ti)" class="h-8 w-8 grid place-items-center text-slate-300 shrink-0"><svg class="w-5 h-5 transition-transform duration-300" :class="{'rotate-180': !t.collapsed}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button @click="removeTreino(ti)" class="h-8 w-8 grid place-items-center rounded-lg text-slate-300 active:bg-rose-50 active:text-rose-500 transition shrink-0" title="Excluir treino"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
@@ -211,12 +213,12 @@
                 </div>
                 <div class="space-y-1.5">
                   <div class="flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <span class="w-7">Série</span><span class="w-16 text-center">Reps</span><span class="w-20 text-center">Carga (kg)</span>
+                    <span class="w-7">Série</span><span class="w-20 text-center">Carga (kg)</span><span class="w-16 text-center">Reps</span>
                   </div>
                   <div v-for="(s, si) in ex.series" :key="s.uid" class="flex items-center gap-2">
                     <span class="w-7 text-center text-[12px] font-bold text-slate-400 tnum">{{ si + 1 }}</span>
-                    <input type="number" min="0" v-model.number="s.reps" class="w-16 bg-slate-100 rounded-lg px-2 py-1.5 text-center font-bold text-ink text-sm outline-none focus:ring-2 ring-brand tnum" />
                     <input type="number" min="0" step="2.5" v-model.number="s.carga" class="w-20 bg-slate-100 rounded-lg px-2 py-1.5 text-center font-bold text-ink text-sm outline-none focus:ring-2 ring-brand tnum" />
+                    <input type="number" min="0" v-model.number="s.reps" class="w-16 bg-slate-100 rounded-lg px-2 py-1.5 text-center font-bold text-ink text-sm outline-none focus:ring-2 ring-brand tnum" />
                     <button @click="removeSet(ti, ei, si)" class="h-7 w-7 grid place-items-center rounded-lg text-slate-300 active:bg-rose-50 active:text-rose-500 transition ml-auto"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                   </div>
                 </div>
