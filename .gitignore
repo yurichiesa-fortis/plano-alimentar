@@ -1,0 +1,8 @@
+# Arquivos de dados/planilha — não publicar no app (repo público)
+*.xlsx
+*.csv
+
+# Node / SO
+node_modules/
+.DS_Store
+Thumbs.db
